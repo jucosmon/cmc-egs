@@ -33,8 +33,18 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return $this->redirectUserBasedOnRole();
+
     }
+
+        protected function redirectUserBasedOnRole(): RedirectResponse
+        {
+            $user = Auth::user(); // Get the authenticated user
+
+            return redirect()->route('dashboard');
+        }
+
+
 
     /**
      * Destroy an authenticated session.
@@ -47,6 +57,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect('/login');
     }
 }
