@@ -18,9 +18,19 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
-        'email',
         'password',
+        'email',
+        'role',
+        'official_id',
+        'first_name',
+        'last_name',
+        'middle_name',
+        'phone',
+        'address',
+        'date_of_birth',
+        'sex',
+        'profile_picture',
+        'is_active',
     ];
 
     /**
@@ -41,8 +51,43 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            'date_of_birth' => 'date',
+            'is_active' => 'boolean',
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
+
+    public function student()
+    {
+        return $this->hasOne(Student::class);
+    }
+
+    public function instructor()
+    {
+        return $this->hasOne(Instructor::class);
+    }
+
+    public function departmentAsDean()
+    {
+        return $this->hasOne(Department::class, 'dean_id');
+    }
+
+    // Accessors
+    public function getFullNameAttribute()
+    {
+        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeByRole($query, $role)
+    {
+        return $query->where('role', $role);
+    }
+
 }
