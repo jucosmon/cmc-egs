@@ -13,6 +13,15 @@ return new class extends Migration
     {
         Schema::create('programs', function (Blueprint $table) {
             $table->id();
+            $table->string('name', 150);
+            $table->string('code', 20)->unique();
+            $table->enum('degree_type', ['bachelors', 'masters', 'doctors', 'associate']);
+            $table->integer('total_units');
+            $table->integer('duration_years');
+            $table->text('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->foreignId('program_head_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('department_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

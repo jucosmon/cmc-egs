@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('curriculum_subjects', function (Blueprint $table) {
             $table->id();
+            $table->integer('year_level');
+            $table->enum('semester', ['first', 'second', 'summer']);
+            $table->enum('course_type', ['major', 'elective', 'minor']);
+            $table->boolean('has_laboratory')->default(false);
+            $table->foreignId('subject_id')->constrained()->onDelete('cascade');
+            $table->foreignId('curriculum_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

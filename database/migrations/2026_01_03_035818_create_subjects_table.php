@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('subjects', function (Blueprint $table) {
             $table->id();
+            $table->string('code', 20)->unique();
+            $table->string('title', 150);
+            $table->text('description')->nullable();
+            $table->integer('units');
             $table->timestamps();
         });
     }

@@ -13,6 +13,10 @@ return new class extends Migration
     {
         Schema::create('blocks', function (Blueprint $table) {
             $table->id();
+            $table->string('code', 20)->unique();
+            $table->year('admission_year');
+            $table->enum('status', ['active', 'inactive', 'graduated'])->default('active');
+            $table->foreignId('program_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }

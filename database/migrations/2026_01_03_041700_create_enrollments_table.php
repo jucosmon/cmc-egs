@@ -13,6 +13,12 @@ return new class extends Migration
     {
         Schema::create('enrollments', function (Blueprint $table) {
             $table->id();
+            $table->enum('status', ['enrolled', 'completed'])->default('enrolled');
+            $table->integer('year_level');
+            $table->timestamp('enrolled_at')->useCurrent();
+            $table->foreignId('academic_term_id')->constrained()->onDelete('cascade');
+            $table->foreignId('block_id')->constrained()->onDelete('cascade');
+            $table->foreignId('student_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }
