@@ -35,7 +35,7 @@ class Program extends Model
 
     public function programHead()
     {
-        return $this->belongsTo(Instructor::class, 'program_head_id');
+        return $this->belongsTo(User::class, 'program_head_id');
     }
 
     public function curriculums()
