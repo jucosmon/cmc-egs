@@ -50,6 +50,90 @@ const canAccessGrades = computed(
     () => isInstructor.value || isRegistrar.value || isStudent.value,
 );
 const canAccessReports = computed(() => isRegistrar.value);
+
+// Account management access controls
+const canAccessAccounts = computed(
+    () =>
+        isITAdmin.value ||
+        isDean.value ||
+        isProgramHead.value ||
+        isRegistrar.value,
+);
+
+// Determine which user types are visible in the dropdown based on current user's role
+const visibleUserTypes = computed(() => {
+    const types = [];
+    if (isITAdmin.value) {
+        types.push(
+            {
+                name: "Dean",
+                value: "dean",
+                route: "accounts.index",
+                params: { type: "dean" },
+            },
+            {
+                name: "Program Head",
+                value: "program_head",
+                route: "accounts.index",
+                params: { type: "program_head" },
+            },
+            {
+                name: "Registrar",
+                value: "registrar",
+                route: "accounts.index",
+                params: { type: "registrar" },
+            },
+            {
+                name: "Instructor",
+                value: "instructor",
+                route: "accounts.index",
+                params: { type: "instructor" },
+            },
+            {
+                name: "Student",
+                value: "student",
+                route: "accounts.index",
+                params: { type: "student" },
+            },
+        );
+    } else if (isDean.value) {
+        types.push(
+            {
+                name: "Program Head",
+                value: "program_head",
+                route: "accounts.index",
+                params: { type: "program_head" },
+            },
+            {
+                name: "Instructor",
+                value: "instructor",
+                route: "accounts.index",
+                params: { type: "instructor" },
+            },
+            {
+                name: "Student",
+                value: "student",
+                route: "accounts.index",
+                params: { type: "student" },
+            },
+        );
+    } else if (isProgramHead.value) {
+        types.push({
+            name: "Student",
+            value: "student",
+            route: "accounts.index",
+            params: { type: "student" },
+        });
+    } else if (isRegistrar.value) {
+        types.push({
+            name: "Student",
+            value: "student",
+            route: "accounts.index",
+            params: { type: "student" },
+        });
+    }
+    return types;
+});
 </script>
 
 <template>
@@ -186,6 +270,56 @@ const canAccessReports = computed(() => isRegistrar.value);
                                                 "
                                             >
                                                 Generate TOR
+                                            </DropdownLink>
+                                        </template>
+                                    </Dropdown>
+                                </div>
+
+                                <!-- Accounts Dropdown (IT Admin, Dean, Program Head, Registrar) -->
+                                <div
+                                    v-if="canAccessAccounts"
+                                    class="hidden sm:flex sm:items-center"
+                                >
+                                    <Dropdown align="left" width="56">
+                                        <template #trigger>
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                :class="{
+                                                    'border-b-2 border-indigo-400 text-gray-900':
+                                                        safeCurrent(
+                                                            'accounts.*',
+                                                        ),
+                                                }"
+                                            >
+                                                Accounts
+                                                <svg
+                                                    class="-me-0.5 ms-2 h-4 w-4"
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 20 20"
+                                                    fill="currentColor"
+                                                >
+                                                    <path
+                                                        fill-rule="evenodd"
+                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                                        clip-rule="evenodd"
+                                                    />
+                                                </svg>
+                                            </button>
+                                        </template>
+
+                                        <template #content>
+                                            <DropdownLink
+                                                v-for="userType in visibleUserTypes"
+                                                :key="userType.value"
+                                                :href="
+                                                    safeRoute(
+                                                        userType.route,
+                                                        userType.params,
+                                                    )
+                                                "
+                                            >
+                                                {{ userType.name }}
                                             </DropdownLink>
                                         </template>
                                     </Dropdown>
@@ -387,6 +521,28 @@ const canAccessReports = computed(() => isRegistrar.value);
                                 :active="safeCurrent('reports.generate-tor')"
                             >
                                 Generate TOR
+                            </ResponsiveNavLink>
+                        </div>
+
+                        <!-- Accounts (IT Admin, Dean, Program Head, Registrar) -->
+                        <div
+                            v-if="canAccessAccounts"
+                            class="border-t border-gray-200 pt-2 mt-2"
+                        >
+                            <div
+                                class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase"
+                            >
+                                Accounts
+                            </div>
+                            <ResponsiveNavLink
+                                v-for="userType in visibleUserTypes"
+                                :key="userType.value"
+                                :href="
+                                    safeRoute(userType.route, userType.params)
+                                "
+                                :active="safeCurrent('accounts.*')"
+                            >
+                                {{ userType.name }}
                             </ResponsiveNavLink>
                         </div>
                     </div>
