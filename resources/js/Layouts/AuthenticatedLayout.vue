@@ -1,11 +1,11 @@
 <script setup>
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import Dropdown from '@/Components/Dropdown.vue';
-import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import ApplicationLogo from "@/Components/ApplicationLogo.vue";
+import Dropdown from "@/Components/Dropdown.vue";
+import DropdownLink from "@/Components/DropdownLink.vue";
+import NavLink from "@/Components/NavLink.vue";
+import ResponsiveNavLink from "@/Components/ResponsiveNavLink.vue";
+import { Link, usePage } from "@inertiajs/vue3";
+import { computed, ref } from "vue";
 
 const showingNavigationDropdown = ref(false);
 const page = usePage();
@@ -18,7 +18,7 @@ const safeRoute = (name, params = {}) => {
     try {
         return route(name, params);
     } catch (e) {
-        return '#';
+        return "#";
     }
 };
 
@@ -31,23 +31,23 @@ const safeCurrent = (pattern) => {
 };
 
 // Helper functions to check user roles
-const isITAdmin = computed(() => userRole.value === 'it_admin');
-const isDean = computed(() => userRole.value === 'dean');
-const isProgramHead = computed(() => userRole.value === 'program_head');
-const isRegistrar = computed(() => userRole.value === 'registrar');
-const isInstructor = computed(() => userRole.value === 'instructor');
-const isStudent = computed(() => userRole.value === 'student');
+const isITAdmin = computed(() => userRole.value === "it_admin");
+const isDean = computed(() => userRole.value === "dean");
+const isProgramHead = computed(() => userRole.value === "program_head");
+const isRegistrar = computed(() => userRole.value === "registrar");
+const isInstructor = computed(() => userRole.value === "instructor");
+const isStudent = computed(() => userRole.value === "student");
 
 // Combined role checks for shared access
 const canAccessDepartmentAndProgram = computed(() => isITAdmin.value);
 const canAccessProgram = computed(() => isProgramHead.value || isDean.value);
 const canAccessTerm = computed(() => isRegistrar.value);
-const canAccessEnrollment = computed(() =>
-    isStudent.value || isRegistrar.value || isProgramHead.value
+const canAccessEnrollment = computed(
+    () => isStudent.value || isRegistrar.value || isProgramHead.value,
 );
 const canAccessClass = computed(() => isInstructor.value);
-const canAccessGrades = computed(() =>
-    isInstructor.value || isRegistrar.value || isStudent.value
+const canAccessGrades = computed(
+    () => isInstructor.value || isRegistrar.value || isStudent.value,
 );
 const canAccessReports = computed(() => isRegistrar.value);
 </script>
@@ -70,7 +70,9 @@ const canAccessReports = computed(() => isRegistrar.value);
                             </div>
 
                             <!-- Navigation Links -->
-                            <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
+                            <div
+                                class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
+                            >
                                 <!-- Dashboard (Available to all) -->
                                 <NavLink
                                     :href="safeRoute('dashboard')"
@@ -85,14 +87,7 @@ const canAccessReports = computed(() => isRegistrar.value);
                                     :href="safeRoute('departments.index')"
                                     :active="safeCurrent('departments.*')"
                                 >
-                                    Departments
-                                </NavLink>
-                                <NavLink
-                                    v-if="canAccessDepartmentAndProgram"
-                                    :href="safeRoute('programs.index')"
-                                    :active="safeCurrent('programs.*')"
-                                >
-                                    Programs
+                                    Departments & Programs
                                 </NavLink>
 
                                 <!-- Program (Dean & Program Head) -->
@@ -141,14 +136,20 @@ const canAccessReports = computed(() => isRegistrar.value);
                                 </NavLink>
 
                                 <!-- Reports Dropdown (Registrar only) -->
-                                <div v-if="canAccessReports" class="hidden sm:flex sm:items-center">
+                                <div
+                                    v-if="canAccessReports"
+                                    class="hidden sm:flex sm:items-center"
+                                >
                                     <Dropdown align="left" width="48">
                                         <template #trigger>
                                             <button
                                                 type="button"
                                                 class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
                                                 :class="{
-                                                    'border-b-2 border-indigo-400 text-gray-900': safeCurrent('reports.*')
+                                                    'border-b-2 border-indigo-400 text-gray-900':
+                                                        safeCurrent(
+                                                            'reports.*',
+                                                        ),
                                                 }"
                                             >
                                                 Reports
@@ -168,10 +169,22 @@ const canAccessReports = computed(() => isRegistrar.value);
                                         </template>
 
                                         <template #content>
-                                            <DropdownLink :href="safeRoute('reports.enrollment-statistics')">
+                                            <DropdownLink
+                                                :href="
+                                                    safeRoute(
+                                                        'reports.enrollment-statistics',
+                                                    )
+                                                "
+                                            >
                                                 Enrollment Statistics
                                             </DropdownLink>
-                                            <DropdownLink :href="safeRoute('reports.generate-tor')">
+                                            <DropdownLink
+                                                :href="
+                                                    safeRoute(
+                                                        'reports.generate-tor',
+                                                    )
+                                                "
+                                            >
                                                 Generate TOR
                                             </DropdownLink>
                                         </template>
@@ -190,7 +203,9 @@ const canAccessReports = computed(() => isRegistrar.value);
                                                 type="button"
                                                 class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
                                             >
-                                                {{ page.props.auth?.user?.name }}
+                                                {{
+                                                    page.props.auth?.user?.name
+                                                }}
 
                                                 <svg
                                                     class="-me-0.5 ms-2 h-4 w-4"
@@ -209,10 +224,12 @@ const canAccessReports = computed(() => isRegistrar.value);
                                     </template>
 
                                     <template #content>
-                                            <DropdownLink :href="safeRoute('profile.edit')">
+                                        <DropdownLink
+                                            :href="safeRoute('profile.edit')"
+                                        >
                                             Profile
                                         </DropdownLink>
-                                            <DropdownLink
+                                        <DropdownLink
                                             :href="safeRoute('logout')"
                                             method="post"
                                             as="button"
@@ -227,7 +244,10 @@ const canAccessReports = computed(() => isRegistrar.value);
                         <!-- Hamburger -->
                         <div class="-me-2 flex items-center sm:hidden">
                             <button
-                                @click="showingNavigationDropdown = !showingNavigationDropdown"
+                                @click="
+                                    showingNavigationDropdown =
+                                        !showingNavigationDropdown
+                                "
                                 class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
                             >
                                 <svg
@@ -237,10 +257,11 @@ const canAccessReports = computed(() => isRegistrar.value);
                                     viewBox="0 0 24 24"
                                 >
                                     <path
-                                                :class="{
-                                                    hidden: showingNavigationDropdown,
-                                                    'inline-flex': !showingNavigationDropdown,
-                                                }"
+                                        :class="{
+                                            hidden: showingNavigationDropdown,
+                                            'inline-flex':
+                                                !showingNavigationDropdown,
+                                        }"
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
                                         stroke-width="2"
@@ -249,7 +270,8 @@ const canAccessReports = computed(() => isRegistrar.value);
                                     <path
                                         :class="{
                                             hidden: !showingNavigationDropdown,
-                                            'inline-flex': showingNavigationDropdown,
+                                            'inline-flex':
+                                                showingNavigationDropdown,
                                         }"
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -341,13 +363,22 @@ const canAccessReports = computed(() => isRegistrar.value);
                         </ResponsiveNavLink>
 
                         <!-- Reports (Registrar) -->
-                        <div v-if="canAccessReports" class="border-t border-gray-200 pt-2 mt-2">
-                            <div class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                        <div
+                            v-if="canAccessReports"
+                            class="border-t border-gray-200 pt-2 mt-2"
+                        >
+                            <div
+                                class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase"
+                            >
                                 Reports
                             </div>
                             <ResponsiveNavLink
-                                :href="safeRoute('reports.enrollment-statistics')"
-                                :active="safeCurrent('reports.enrollment-statistics')"
+                                :href="
+                                    safeRoute('reports.enrollment-statistics')
+                                "
+                                :active="
+                                    safeCurrent('reports.enrollment-statistics')
+                                "
                             >
                                 Enrollment Statistics
                             </ResponsiveNavLink>
@@ -371,14 +402,22 @@ const canAccessReports = computed(() => isRegistrar.value);
                             </div>
                             <!-- Show user role badge -->
                             <div class="mt-1">
-                                <span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800 capitalize">
-                                    {{ userRole ? userRole.replace('_', ' ') : '' }}
+                                <span
+                                    class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800 capitalize"
+                                >
+                                    {{
+                                        userRole
+                                            ? userRole.replace("_", " ")
+                                            : ""
+                                    }}
                                 </span>
                             </div>
                         </div>
 
                         <div class="mt-3 space-y-1">
-                            <ResponsiveNavLink :href="safeRoute('profile.edit')">
+                            <ResponsiveNavLink
+                                :href="safeRoute('profile.edit')"
+                            >
                                 Profile
                             </ResponsiveNavLink>
                             <ResponsiveNavLink

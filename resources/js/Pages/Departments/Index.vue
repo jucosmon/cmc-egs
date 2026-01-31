@@ -26,10 +26,11 @@ const deleteDepartment = (id) => {
                             <h2 class="text-2xl font-bold">Departments</h2>
                             <Link :href="route('departments.create')"
                                 class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-                                Add Department
+                                Create Department
                             </Link>
                         </div>
 
+                        <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
@@ -56,12 +57,12 @@ const deleteDepartment = (id) => {
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <Link :href="route('departments.edit', dept.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">Edit</Link>
-                                        <button @click="deleteDepartment(dept.id)" class="text-red-600 hover:text-red-900">Delete</button>
+                                        <Link :href="route('departments.show', dept.id)" class="text-indigo-600 hover:text-indigo-900">View</Link>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
 
                         <!-- Pagination -->
                         <Pagination :links="departments.links" />

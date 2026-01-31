@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class DepartmentController extends Controller
@@ -94,11 +95,18 @@ class DepartmentController extends Controller
 
     public function update(Request $request, Department $department)
     {
+
         $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'code' => 'required|string|max:20|unique:departments,code,' . $department->id,
-            'dean_id' => 'nullable|exists:users,id',
-            'is_active' => 'boolean',
+            'name' => 'sometimes|required|string|max:150',
+            'code' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('departments', 'code')->ignore($department->id),
+            ],
+            'dean_id' => 'sometimes|nullable|exists:users,id',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $department->update($validated);
