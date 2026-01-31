@@ -3,63 +3,251 @@
 namespace App\Http\Controllers;
 
 use App\Models\Curriculum;
+use App\Models\CurriculumSubject;
+use App\Models\Program;
+use App\Models\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class CurriculumController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $query = Curriculum::with(['program']);
+
+        // Filter by program
+        if ($request->has('program_id')) {
+            $query->where('program_id', $request->program_id);
+        }
+
+        // Filter by active status
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+
+        $curriculums = $query->withCount('curriculumSubjects')
+            ->latest()
+            ->paginate(15);
+
+        $programs = Program::active()->select('id', 'name', 'code')->get();
+
+        return Inertia::render('Curriculums/Index', [
+            'curriculums' => $curriculums,
+            'programs' => $programs,
+            'filters' => $request->only(['program_id', 'is_active']),
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        $programs = Program::active()->select('id', 'name', 'code')->get();
+        $subjects = Subject::select('id', 'code', 'title', 'units')->orderBy('code')->get();
+
+        return Inertia::render('Curriculums/Create', [
+            'programs' => $programs,
+            'subjects' => $subjects,
+        ]);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:50',
+            'year_effective' => 'required|integer|min:2000|max:' . (date('Y') + 5),
+            'program_id' => 'required|exists:programs,id',
+            'is_active' => 'boolean',
+
+            // Curriculum subjects array
+            'subjects' => 'nullable|array',
+            'subjects.*.subject_id' => 'required|exists:subjects,id',
+            'subjects.*.year_level' => 'required|integer|min:1|max:5',
+            'subjects.*.semester' => 'required|in:first,second,summer',
+            'subjects.*.course_type' => 'required|in:major,elective,minor',
+            'subjects.*.has_laboratory' => 'boolean',
+            'subjects.*.prerequisites' => 'nullable|array',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // If setting as active, deactivate other curriculums for this program
+            if ($validated['is_active'] ?? false) {
+                Curriculum::where('program_id', $validated['program_id'])
+                    ->update(['is_active' => false]);
+            }
+
+            // Create curriculum
+            $curriculum = Curriculum::create([
+                'name' => $validated['name'],
+                'year_effective' => $validated['year_effective'],
+                'program_id' => $validated['program_id'],
+                'is_active' => $validated['is_active'] ?? false,
+            ]);
+
+            // Add curriculum subjects if provided
+            if (!empty($validated['subjects'])) {
+                foreach ($validated['subjects'] as $subjectData) {
+                    $curriculumSubject = CurriculumSubject::create([
+                        'curriculum_id' => $curriculum->id,
+                        'subject_id' => $subjectData['subject_id'],
+                        'year_level' => $subjectData['year_level'],
+                        'semester' => $subjectData['semester'],
+                        'course_type' => $subjectData['course_type'],
+                        'has_laboratory' => $subjectData['has_laboratory'] ?? false,
+                    ]);
+
+                    // Attach prerequisites if provided
+                    if (!empty($subjectData['prerequisites'])) {
+                        $curriculumSubject->prerequisites()->attach($subjectData['prerequisites']);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('curriculums.index')
+                ->with('success', 'Curriculum created successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to create curriculum: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Curriculum $curriculum)
     {
-        //
+        $curriculum->load([
+            'program.department',
+            'curriculumSubjects' => function ($query) {
+                $query->with(['subject', 'prerequisites.subject'])
+                    ->orderBy('year_level')
+                    ->orderBy('semester');
+            }
+        ]);
+
+        // Group subjects by year and semester
+        $groupedSubjects = $curriculum->curriculumSubjects->groupBy(function ($item) {
+            return $item->year_level . '-' . $item->semester;
+        });
+
+        return Inertia::render('Curriculums/Show', [
+            'curriculum' => $curriculum,
+            'groupedSubjects' => $groupedSubjects,
+        ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Curriculum $curriculum)
     {
-        //
+        $curriculum->load([
+            'curriculumSubjects' => function ($query) {
+                $query->with(['subject', 'prerequisites']);
+            }
+        ]);
+
+        $programs = Program::active()->select('id', 'name', 'code')->get();
+        $subjects = Subject::select('id', 'code', 'title', 'units')->orderBy('code')->get();
+
+        return Inertia::render('Curriculums/Edit', [
+            'curriculum' => $curriculum,
+            'programs' => $programs,
+            'subjects' => $subjects,
+        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Curriculum $curriculum)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:50',
+            'year_effective' => 'required|integer|min:2000|max:' . (date('Y') + 5),
+            'program_id' => 'required|exists:programs,id',
+            'is_active' => 'boolean',
+
+            // Curriculum subjects array
+            'subjects' => 'nullable|array',
+            'subjects.*.id' => 'nullable|exists:curriculum_subjects,id',
+            'subjects.*.subject_id' => 'required|exists:subjects,id',
+            'subjects.*.year_level' => 'required|integer|min:1|max:5',
+            'subjects.*.semester' => 'required|in:first,second,summer',
+            'subjects.*.course_type' => 'required|in:major,elective,minor',
+            'subjects.*.has_laboratory' => 'boolean',
+            'subjects.*.prerequisites' => 'nullable|array',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            // If setting as active, deactivate other curriculums for this program
+            if ($validated['is_active'] ?? false) {
+                Curriculum::where('program_id', $validated['program_id'])
+                    ->where('id', '!=', $curriculum->id)
+                    ->update(['is_active' => false]);
+            }
+
+            // Update curriculum
+            $curriculum->update([
+                'name' => $validated['name'],
+                'year_effective' => $validated['year_effective'],
+                'program_id' => $validated['program_id'],
+                'is_active' => $validated['is_active'] ?? false,
+            ]);
+
+            // Handle curriculum subjects updates
+            if (isset($validated['subjects'])) {
+                $existingIds = [];
+
+                foreach ($validated['subjects'] as $subjectData) {
+                    if (!empty($subjectData['id'])) {
+                        // Update existing
+                        $curriculumSubject = CurriculumSubject::find($subjectData['id']);
+                        $curriculumSubject->update([
+                            'subject_id' => $subjectData['subject_id'],
+                            'year_level' => $subjectData['year_level'],
+                            'semester' => $subjectData['semester'],
+                            'course_type' => $subjectData['course_type'],
+                            'has_laboratory' => $subjectData['has_laboratory'] ?? false,
+                        ]);
+                        $existingIds[] = $subjectData['id'];
+                    } else {
+                        // Create new
+                        $curriculumSubject = CurriculumSubject::create([
+                            'curriculum_id' => $curriculum->id,
+                            'subject_id' => $subjectData['subject_id'],
+                            'year_level' => $subjectData['year_level'],
+                            'semester' => $subjectData['semester'],
+                            'course_type' => $subjectData['course_type'],
+                            'has_laboratory' => $subjectData['has_laboratory'] ?? false,
+                        ]);
+                        $existingIds[] = $curriculumSubject->id;
+                    }
+
+                    // Sync prerequisites
+                    $curriculumSubject->prerequisites()->sync($subjectData['prerequisites'] ?? []);
+                }
+
+                // Delete removed subjects
+                $curriculum->curriculumSubjects()
+                    ->whereNotIn('id', $existingIds)
+                    ->delete();
+            }
+
+            DB::commit();
+
+            return redirect()->route('curriculums.index')
+                ->with('success', 'Curriculum updated successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to update curriculum: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Curriculum $curriculum)
     {
-        //
+        // Check if curriculum is being used
+        if ($curriculum->curriculumSubjects()->whereHas('scheduledSubjects')->count() > 0) {
+            return back()->with('error', 'Cannot delete curriculum with scheduled subjects.');
+        }
+
+        $curriculum->delete();
+
+        return redirect()->route('curriculums.index')
+            ->with('success', 'Curriculum deleted successfully.');
     }
 }
