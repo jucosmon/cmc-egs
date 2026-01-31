@@ -58,7 +58,7 @@ class UserSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        // Program Head / Instructor
+        // Program Head
         User::create([
             'email' => 'programhead@cmc.edu.ph',
             'password' => Hash::make('password'),

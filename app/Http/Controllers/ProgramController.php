@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
-use App\Models\Instructor;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,7 +11,7 @@ class ProgramController extends Controller
 {
     public function index()
     {
-        $programs = Program::with(['department', 'programHead.user'])
+        $programs = Program::with(['department', 'programHead'])
             ->withCount(['students', 'blocks', 'curriculums'])
             ->latest()
             ->paginate(10);
@@ -28,20 +27,20 @@ class ProgramController extends Controller
             ->select('id', 'name', 'code')
             ->get();
 
-        $instructors = Instructor::with('user')
+        $programHeads = \App\Models\User::where('role', 'program_head')
             ->active()
             ->get()
-            ->map(function ($instructor) {
+            ->map(function ($user) {
                 return [
-                    'id' => $instructor->id,
-                    'name' => $instructor->user->first_name . ' ' . $instructor->user->last_name,
-                    'specialization' => $instructor->specialization,
+                    'id' => $user->id,
+                    'name' => trim($user->first_name . ' ' . $user->last_name),
+                    'official_id' => $user->official_id ?? null,
                 ];
             });
 
         return Inertia::render('Programs/Create', [
             'departments' => $departments,
-            'instructors' => $instructors,
+            'programHeads' => $programHeads,
         ]);
     }
 
@@ -55,7 +54,7 @@ class ProgramController extends Controller
             'duration_years' => 'required|integer|min:1|max:10',
             'description' => 'nullable|string',
             'department_id' => 'required|exists:departments,id',
-            'program_head_id' => 'nullable|exists:instructors,id',
+            'program_head_id' => 'nullable|exists:users,id',
             'is_active' => 'boolean',
         ]);
 
@@ -69,7 +68,7 @@ class ProgramController extends Controller
     {
         $program->load([
             'department',
-            'programHead.user',
+            'programHead',
             'curriculums' => function ($query) {
                 $query->with('curriculumSubjects.subject');
             },
@@ -89,21 +88,21 @@ class ProgramController extends Controller
             ->select('id', 'name', 'code')
             ->get();
 
-        $instructors = Instructor::with('user')
+        $programHeads = \App\Models\User::where('role', 'program_head')
             ->active()
             ->get()
-            ->map(function ($instructor) {
+            ->map(function ($user) {
                 return [
-                    'id' => $instructor->id,
-                    'name' => $instructor->user->first_name . ' ' . $instructor->user->last_name,
-                    'specialization' => $instructor->specialization,
+                    'id' => $user->id,
+                    'name' => trim($user->first_name . ' ' . $user->last_name),
+                    'official_id' => $user->official_id ?? null,
                 ];
             });
 
         return Inertia::render('Programs/Edit', [
             'program' => $program,
             'departments' => $departments,
-            'instructors' => $instructors,
+            'programHeads' => $programHeads,
         ]);
     }
 
@@ -117,7 +116,7 @@ class ProgramController extends Controller
             'duration_years' => 'required|integer|min:1|max:10',
             'description' => 'nullable|string',
             'department_id' => 'required|exists:departments,id',
-            'program_head_id' => 'nullable|exists:instructors,id',
+            'program_head_id' => 'nullable|exists:users,id',
             'is_active' => 'boolean',
         ]);
 

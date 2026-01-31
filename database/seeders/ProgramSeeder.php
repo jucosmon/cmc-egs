@@ -29,7 +29,7 @@ class ProgramSeeder extends Seeder
             'duration_years' => 4,
             'description' => 'A program emphasizing computer science theory and programming.',
             'is_active' => true,
-            'program_head_id' => 6,
+            'program_head_id' => null,
             'department_id' => 1, // COECS
         ]);
 
@@ -41,7 +41,7 @@ class ProgramSeeder extends Seeder
             'duration_years' => 4,
             'description' => 'A program focused on business management and entrepreneurship.',
             'is_active' => true,
-            'program_head_id' => 7,
+            'program_head_id' => null,
             'department_id' => 2, // CBA
         ]);
 
