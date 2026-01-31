@@ -79,6 +79,14 @@ class ProgramController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+
+        // Deans can only create programs in their own department
+        if ($user->role === 'dean') {
+            $department = $this->getDeanDepartmentOrFail();
+            $request->merge(['department_id' => $department->id]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:150',
             'code' => 'required|string|max:20|unique:programs,code',
@@ -172,6 +180,8 @@ class ProgramController extends Controller
             if ($program->department_id !== $department->id) {
                 abort(403, 'Unauthorized to update this program.');
             }
+            // Ensure dean cannot change department
+            $request->merge(['department_id' => $department->id]);
         }
 
         $validated = $request->validate([
