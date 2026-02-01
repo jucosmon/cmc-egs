@@ -23,6 +23,18 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    blocks: {
+        type: Object,
+        default: () => ({}),
+    },
+    student_statuses: {
+        type: Array,
+        default: () => [],
+    },
+    year_levels: {
+        type: Array,
+        default: () => [],
+    },
     errors: {
         type: Object,
         default: () => ({}),
@@ -102,6 +114,19 @@ const form = useForm({
         }
         return "";
     })(),
+    // Student-specific fields
+    year_level:
+        props.account.student && props.account.student.year_level
+            ? props.account.student.year_level
+            : "",
+    status:
+        props.account.student && props.account.student.status
+            ? props.account.student.status
+            : "",
+    block_id:
+        props.account.student && props.account.student.block_id
+            ? String(props.account.student.block_id)
+            : "",
     type: props.userType,
 });
 
@@ -229,6 +254,83 @@ const getRoleLabel = (role) => {
                                         </ul>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Student additional fields for registrar/it_admin -->
+                        <div
+                            v-if="
+                                props.userType === 'student' &&
+                                ['it_admin', 'registrar'].includes(
+                                    currentUserRole.value,
+                                )
+                            "
+                            class="space-y-4"
+                        >
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Year Level</label
+                                >
+                                <select
+                                    v-model="form.year_level"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">
+                                        Select year level...
+                                    </option>
+                                    <option
+                                        v-for="yl in props.year_levels"
+                                        :key="yl"
+                                        :value="yl"
+                                    >
+                                        {{ yl }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Status</label
+                                >
+                                <select
+                                    v-model="form.status"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">Select status...</option>
+                                    <option
+                                        v-for="st in props.student_statuses"
+                                        :key="st"
+                                        :value="st"
+                                    >
+                                        {{ st }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div
+                                v-if="
+                                    Object.keys(props.blocks || {}).length > 0
+                                "
+                            >
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                    >Block</label
+                                >
+                                <select
+                                    v-model="form.block_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">Select block...</option>
+                                    <option
+                                        v-for="(code, id) in props.blocks"
+                                        :key="id"
+                                        :value="id"
+                                    >
+                                        {{ code }}
+                                    </option>
+                                </select>
                             </div>
                         </div>
 

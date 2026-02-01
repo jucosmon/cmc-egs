@@ -368,6 +368,33 @@ const getRoleLabel = (role) => {
                                     {{ formatDate(student.created_at) }}
                                 </dd>
                             </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Year Level
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.year_level || "N/A" }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Status
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.status || "N/A" }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Block
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.block?.name || "N/A" }}
+                                </dd>
+                            </div>
                         </dl>
                     </div>
                 </div>

@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Program;
 use App\Models\Student;
 use App\Models\Instructor;
+use App\Models\Block;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -63,6 +64,7 @@ class AccountController extends Controller
 
         $departments = [];
         $programs = [];
+        $blocks = [];
 
         // Get departments and programs for selection
         if ($user->role === 'it_admin') {
@@ -109,6 +111,9 @@ class AccountController extends Controller
             'sex' => 'nullable|in:Male,Female',
             'department_id' => 'nullable|exists:departments,id',
             'program_id' => 'nullable|exists:programs,id',
+            'year_level' => 'nullable|integer|min:1|max:6',
+            'status' => 'nullable|in:regular,irregular',
+            'block_id' => 'nullable|exists:blocks,id',
         ]);
 
         // Generate email if not provided
@@ -171,6 +176,9 @@ class AccountController extends Controller
             Student::create([
                 'user_id' => $newUser->id,
                 'program_id' => $validated['program_id'],
+                'year_level' => $validated['year_level'] ?? null,
+                'status' => $validated['status'] ?? null,
+                'block_id' => $validated['block_id'] ?? null,
             ]);
         }
 
@@ -267,10 +275,31 @@ class AccountController extends Controller
             }
         }
 
+        $blocks = [];
+
         // Ensure program_id options are available when editing a program head
         if ($type === 'program_head' && $currentUser->role === 'it_admin') {
             if (!count($programs)) {
                 $programs = Program::all()->pluck('name', 'id');
+            }
+        }
+
+        // Provide blocks and statuses when editing students (useful for registrars)
+        if ($type === 'student') {
+            // If we have a program selected (either from department/programs or account), filter blocks by program
+            $programId = null;
+            if ($programs && count($programs)) {
+                $keys = $programs->keys();
+                $programId = $keys->first() ?? null;
+            }
+            if ($account->student && $account->student->program_id) {
+                $programId = $account->student->program_id;
+            }
+
+            if ($programId) {
+                $blocks = Block::where('program_id', $programId)->pluck('code', 'id');
+            } else {
+                $blocks = Block::all()->pluck('code', 'id');
             }
         }
 
@@ -286,6 +315,9 @@ class AccountController extends Controller
             'programs' => $programs,
             'program' => $program,
             'department' => $department,
+            'blocks' => $blocks,
+            'student_statuses' => ['regular', 'irregular'],
+            'year_levels' => [1, 2, 3, 4, 5],
         ]);
     }
 
@@ -328,6 +360,9 @@ class AccountController extends Controller
             if ($student) {
                 $student->update([
                     'program_id' => $validated['program_id'] ?? $student->program_id,
+                    'year_level' => $validated['year_level'] ?? $student->year_level,
+                    'status' => $validated['status'] ?? $student->status,
+                    'block_id' => $validated['block_id'] ?? $student->block_id,
                 ]);
             } elseif (isset($validated['program_id'])) {
                 \App\Models\Student::create([
