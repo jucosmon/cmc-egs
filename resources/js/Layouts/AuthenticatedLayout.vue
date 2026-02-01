@@ -40,7 +40,8 @@ const isStudent = computed(() => userRole.value === "student");
 
 // Combined role checks for shared access
 const canAccessDepartmentAndProgram = computed(() => isITAdmin.value);
-const canAccessProgram = computed(() => isProgramHead.value || isDean.value);
+const canAccessPrograms = computed(() => isDean.value);
+const canAccessProgram = computed(() => isProgramHead.value);
 const canAccessTerm = computed(() => isRegistrar.value);
 const canAccessEnrollment = computed(
     () => isStudent.value || isRegistrar.value || isProgramHead.value,
@@ -174,13 +175,22 @@ const visibleUserTypes = computed(() => {
                                     Departments & Programs
                                 </NavLink>
 
-                                <!-- Program (Dean & Program Head) -->
+                                <!-- Program (Dean) -->
                                 <NavLink
-                                    v-if="canAccessProgram"
+                                    v-if="canAccessPrograms"
                                     :href="safeRoute('programs.index')"
                                     :active="safeCurrent('programs.*')"
                                 >
                                     Programs
+                                </NavLink>
+
+                                <!-- Program (Dean) -->
+                                <NavLink
+                                    v-if="canAccessProgram"
+                                    :href="safeRoute('curriculums.index')"
+                                    :active="safeCurrent('curriculums.*')"
+                                >
+                                    Program
                                 </NavLink>
 
                                 <!-- Term (Registrar only) -->
@@ -451,13 +461,21 @@ const visibleUserTypes = computed(() => {
                             Programs
                         </ResponsiveNavLink>
 
-                        <!-- Program (Dean & Program Head) -->
+                        <!-- Program (Dean) -->
                         <ResponsiveNavLink
-                            v-if="canAccessProgram"
+                            v-if="canAccessPrograms"
                             :href="safeRoute('programs.index')"
                             :active="safeCurrent('programs.*')"
                         >
                             Programs
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            v-if="canAccessProgram"
+                            :href="safeRoute('curriculums.index')"
+                            :active="safeCurrent('curriculums.*')"
+                        >
+                            Program
                         </ResponsiveNavLink>
 
                         <!-- Term (Registrar) -->

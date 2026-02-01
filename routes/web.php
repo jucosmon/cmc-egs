@@ -43,6 +43,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('programs', ProgramController::class);
         Route::resource('blocks', BlockController::class);
         Route::resource('curriculums', CurriculumController::class);
+        Route::put('curriculums/{curriculum}/activate', [CurriculumController::class, 'activate'])
+            ->name('curriculums.activate');
         Route::resource('instructors', InstructorController::class);
         Route::resource('students', StudentController::class);
     });

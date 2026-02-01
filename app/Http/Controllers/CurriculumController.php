@@ -7,6 +7,7 @@ use App\Models\CurriculumSubject;
 use App\Models\Program;
 use App\Models\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -15,10 +16,27 @@ class CurriculumController extends Controller
     public function index(Request $request)
     {
         $query = Curriculum::with(['program']);
+        $user = Auth::user();
 
-        // Filter by program
-        if ($request->has('program_id')) {
-            $query->where('program_id', $request->program_id);
+        // If user is a program head, only show curriculums for their program
+        if ($user->role === 'program_head') {
+            $programHeadProgram = Program::where('program_head_id', $user->id)->first();
+            if ($programHeadProgram) {
+                $query->where('program_id', $programHeadProgram->id);
+            } else {
+                // If program head has no program assigned, return empty
+                $curriculums = Curriculum::where('id', -1)->paginate(15);
+                return Inertia::render('Curriculums/Index', [
+                    'curriculums' => $curriculums,
+                    'programs' => [],
+                    'filters' => [],
+                ]);
+            }
+        } else {
+            // For other roles (dean, it_admin), allow filtering by program
+            if ($request->has('program_id')) {
+                $query->where('program_id', $request->program_id);
+            }
         }
 
         // Filter by active status
@@ -30,7 +48,12 @@ class CurriculumController extends Controller
             ->latest()
             ->paginate(15);
 
-        $programs = Program::active()->select('id', 'name', 'code')->get();
+        // Only show relevant programs for filtering
+        if ($user->role === 'program_head') {
+            $programs = Program::where('program_head_id', $user->id)->select('id', 'name', 'code')->get();
+        } else {
+            $programs = Program::active()->select('id', 'name', 'code')->get();
+        }
 
         return Inertia::render('Curriculums/Index', [
             'curriculums' => $curriculums,
@@ -41,7 +64,14 @@ class CurriculumController extends Controller
 
     public function create()
     {
-        $programs = Program::active()->select('id', 'name', 'code')->get();
+        $user = Auth::user();
+        if ($user->role === 'program_head') {
+            $programs = Program::where('program_head_id', $user->id)
+                ->select('id', 'name', 'code')
+                ->get();
+        } else {
+            $programs = Program::active()->select('id', 'name', 'code')->get();
+        }
         $subjects = Subject::select('id', 'code', 'title', 'units')->orderBy('code')->get();
 
         return Inertia::render('Curriculums/Create', [
@@ -142,8 +172,14 @@ class CurriculumController extends Controller
                 $query->with(['subject', 'prerequisites']);
             }
         ]);
-
-        $programs = Program::active()->select('id', 'name', 'code')->get();
+        $user = Auth::user();
+        if ($user->role === 'program_head') {
+            $programs = Program::where('program_head_id', $user->id)
+                ->select('id', 'name', 'code')
+                ->get();
+        } else {
+            $programs = Program::active()->select('id', 'name', 'code')->get();
+        }
         $subjects = Subject::select('id', 'code', 'title', 'units')->orderBy('code')->get();
 
         return Inertia::render('Curriculums/Edit', [
@@ -249,5 +285,28 @@ class CurriculumController extends Controller
 
         return redirect()->route('curriculums.index')
             ->with('success', 'Curriculum deleted successfully.');
+    }
+
+
+    public function activate(Curriculum $curriculum)
+    {
+        DB::beginTransaction();
+        try {
+            // Deactivate all other curriculums for this program
+            Curriculum::where('program_id', $curriculum->program_id)
+                ->where('id', '!=', $curriculum->id)
+                ->update(['is_active' => false]);
+
+            // Activate the selected curriculum
+            $curriculum->update(['is_active' => true]);
+
+            DB::commit();
+
+            return redirect()->route('curriculums.index')
+                ->with('success', 'You have activated a new curriculum');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to activate curriculum: ' . $e->getMessage());
+        }
     }
 }
