@@ -1,0 +1,3 @@
+<?php
+// Temp backup file
+?>

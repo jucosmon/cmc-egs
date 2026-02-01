@@ -73,6 +73,23 @@ class User extends Authenticatable
         return $this->hasOne(Department::class, 'dean_id');
     }
 
+    public function programAsHead()
+    {
+        return $this->hasOne(Program::class, 'program_head_id');
+    }
+
+    public function departmentAsProgramHead()
+    {
+        return $this->hasOneThrough(
+            Department::class,
+            Program::class,
+            'program_head_id',
+            'id',
+            'id',
+            'department_id'
+        );
+    }
+
     // Accessors
     public function getFullNameAttribute()
     {

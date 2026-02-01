@@ -6,7 +6,7 @@ use App\Http\Controllers\{
     CurriculumController, AcademicTermController,
     ScheduledSubjectController, EnrollmentController,
     GradeController, ReportController, ClassController, DashboardController,
-    ProfileController
+    ProfileController, AccountController
 };
 
 use Illuminate\Foundation\Application;
@@ -101,6 +101,13 @@ Route::middleware('auth')->group(function () {
             ->name('grades.drop');
         Route::get('grades/{scheduledSubject}/sheet', [GradeController::class, 'classGradeSheet'])
             ->name('grades.class-sheet');
+    });
+
+    // Accounts (IT Admin, Dean, Program Head, Registrar)
+    Route::middleware('role:it_admin,dean,program_head,registrar')->group(function () {
+        Route::resource('accounts', AccountController::class);
+        Route::post('accounts/{user}/reset-password', [AccountController::class, 'resetPassword'])
+            ->name('accounts.reset-password');
     });
 
 
