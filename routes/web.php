@@ -68,9 +68,24 @@ Route::middleware('auth')->group(function () {
         });
     });
 
-    // Enrollment routes
+    // Enrollment routes (Program Head specific)
+    Route::middleware('role:program_head')->group(function () {
+        Route::get('/enrollments', [BlockController::class, 'index'])->name('enrollments.index');
+        Route::get('/blocks/{block}/students', [BlockController::class, 'students'])->name('blocks.students');
+        Route::get('/blocks/{block}/term-history', [BlockController::class, 'termHistory'])->name('blocks.term-history');
+
+        // Scheduled subjects for program head
+        Route::post('/scheduled-subjects', [ScheduledSubjectController::class, 'store'])->name('scheduled-subjects.store');
+        Route::put('/scheduled-subjects/{scheduledSubject}', [ScheduledSubjectController::class, 'update'])->name('scheduled-subjects.update');
+        Route::delete('/scheduled-subjects/{scheduledSubject}', [ScheduledSubjectController::class, 'destroy'])->name('scheduled-subjects.destroy');
+    });
+
+    // General enrollment routes
     Route::middleware('role:student,registrar,program_head')->group(function () {
-        Route::resource('enrollments', EnrollmentController::class);
+        Route::get('enrollments', [EnrollmentController::class, 'index'])->name('enrollments.index');
+        Route::get('enrollments/{enrollment}', [EnrollmentController::class, 'show'])->name('enrollments.show');
+        Route::get('enrollments/create', [EnrollmentController::class, 'create'])->name('enrollments.create');
+        Route::post('enrollments', [EnrollmentController::class, 'store'])->name('enrollments.store');
         Route::get('enrollments/subjects/available', [EnrollmentController::class, 'getAvailableSubjects'])
             ->name('enrollments.available-subjects');
     });

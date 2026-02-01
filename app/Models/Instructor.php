@@ -31,11 +31,6 @@ class Instructor extends Model
         return $this->belongsTo(Department::class);
     }
 
-    public function programsAsHead()
-    {
-        return $this->hasMany(Program::class, 'program_head_id');
-    }
-
     public function scheduledSubjects()
     {
         return $this->hasMany(ScheduledSubject::class);

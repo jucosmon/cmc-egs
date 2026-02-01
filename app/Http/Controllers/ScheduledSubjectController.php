@@ -119,7 +119,7 @@ class ScheduledSubjectController extends Controller
             'time_end' => 'required|date_format:H:i|after:time_start',
             'academic_term_id' => 'required|exists:academic_terms,id',
             'block_id' => 'required|exists:blocks,id',
-            'instructor_id' => 'required|exists:instructors,id',
+            'instructor_id' => 'nullable|exists:instructors,id',
             'curriculum_subject_id' => 'required|exists:curriculum_subjects,id',
         ]);
 
@@ -137,9 +137,11 @@ class ScheduledSubjectController extends Controller
                                     ->where('time_end', '>=', $validated['time_end']);
                             });
                     });
-            })
-            ->orWhere(function ($query) use ($validated) {
-                // Same instructor at same time
+            });
+
+        // Only check instructor conflict if one is assigned
+        if ($validated['instructor_id']) {
+            $conflict->orWhere(function ($query) use ($validated) {
                 $query->where('instructor_id', $validated['instructor_id'])
                     ->where('day', $validated['day'])
                     ->where(function ($q) use ($validated) {
@@ -150,30 +152,30 @@ class ScheduledSubjectController extends Controller
                                     ->where('time_end', '>=', $validated['time_end']);
                             });
                     });
-            })
-            ->orWhere(function ($query) use ($validated) {
-                // Same room at same time
-                $query->where('room', $validated['room'])
-                    ->where('day', $validated['day'])
-                    ->where(function ($q) use ($validated) {
-                        $q->whereBetween('time_start', [$validated['time_start'], $validated['time_end']])
-                            ->orWhereBetween('time_end', [$validated['time_start'], $validated['time_end']])
-                            ->orWhere(function ($q2) use ($validated) {
-                                $q2->where('time_start', '<=', $validated['time_start'])
-                                    ->where('time_end', '>=', $validated['time_end']);
-                            });
-                    });
-            })
-            ->exists();
+            });
+        }
 
-        if ($conflict) {
+        $conflict->orWhere(function ($query) use ($validated) {
+            // Same room at same time
+            $query->where('room', $validated['room'])
+                ->where('day', $validated['day'])
+                ->where(function ($q) use ($validated) {
+                    $q->whereBetween('time_start', [$validated['time_start'], $validated['time_end']])
+                        ->orWhereBetween('time_end', [$validated['time_start'], $validated['time_end']])
+                        ->orWhere(function ($q2) use ($validated) {
+                            $q2->where('time_start', '<=', $validated['time_start'])
+                                ->where('time_end', '>=', $validated['time_end']);
+                        });
+                });
+        });
+
+        if ($conflict->exists()) {
             return back()->with('error', 'Scheduling conflict detected. Please check block, instructor, or room availability.');
         }
 
         ScheduledSubject::create($validated);
 
-        return redirect()->route('classes.index')
-            ->with('success', 'Subject scheduled successfully.');
+        return back()->with('success', 'You have successfully created a new subject schedule.');
     }
 
     public function show(ScheduledSubject $scheduledSubject)
@@ -223,18 +225,20 @@ class ScheduledSubjectController extends Controller
             'room' => 'required|string|max:50',
             'time_start' => 'required|date_format:H:i',
             'time_end' => 'required|date_format:H:i|after:time_start',
-            'instructor_id' => 'required|exists:instructors,id',
+            'instructor_id' => 'nullable|exists:instructors,id',
         ]);
 
         // Check for scheduling conflicts (excluding current schedule)
         $conflict = ScheduledSubject::where('id', '!=', $scheduledSubject->id)
             ->where('academic_term_id', $scheduledSubject->academic_term_id)
-            ->where(function ($query) use ($validated, $scheduledSubject) {
-                $query->where('block_id', $scheduledSubject->block_id)
-                    ->where('day', $validated['day'])
-                    ->where(function ($q) use ($validated) {
-                        $q->whereBetween('time_start', [$validated['time_start'], $validated['time_end']])
-                            ->orWhereBetween('time_end', [$validated['time_start'], $validated['time_end']]);
+            ->where('block_id', $scheduledSubject->block_id)
+            ->where('day', $validated['day'])
+            ->where(function ($q) use ($validated) {
+                $q->whereBetween('time_start', [$validated['time_start'], $validated['time_end']])
+                    ->orWhereBetween('time_end', [$validated['time_start'], $validated['time_end']])
+                    ->orWhere(function ($q2) use ($validated) {
+                        $q2->where('time_start', '<=', $validated['time_start'])
+                            ->where('time_end', '>=', $validated['time_end']);
                     });
             })
             ->exists();
@@ -245,8 +249,7 @@ class ScheduledSubjectController extends Controller
 
         $scheduledSubject->update($validated);
 
-        return redirect()->route('classes.index')
-            ->with('success', 'Schedule updated successfully.');
+        return back()->with('success', 'You have successfully updated the subject schedule.');
     }
 
     public function destroy(ScheduledSubject $scheduledSubject)
@@ -258,7 +261,6 @@ class ScheduledSubjectController extends Controller
 
         $scheduledSubject->delete();
 
-        return redirect()->route('classes.index')
-            ->with('success', 'Schedule deleted successfully.');
+        return back()->with('success', 'Successfully dropped a subject schedule.');
     }
 }

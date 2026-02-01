@@ -18,6 +18,12 @@ class EnrollmentController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+
+        // Program heads should use the enrollment management interface
+        if ($user->role === 'program_head') {
+            return app(BlockController::class)->index($request);
+        }
+
         $query = Enrollment::with([
             'student.user',
             'academicTerm',
@@ -30,13 +36,6 @@ class EnrollmentController extends Controller
             // Students see only their enrollments
             $student = $user->student;
             $query->where('student_id', $student->id);
-        } elseif ($user->role === 'program_head') {
-            // Program heads see enrollments for their program
-            $programHead = $user->instructor;
-            $programIds = $programHead->programsAsHead->pluck('id');
-            $query->whereHas('student', function ($q) use ($programIds) {
-                $q->whereIn('program_id', $programIds);
-            });
         }
         // Registrars see all enrollments (no additional filter)
 
@@ -202,9 +201,12 @@ class EnrollmentController extends Controller
         ]);
 
         // Calculate total units
-        $totalUnits = $enrollment->enrolledSubjects->sum(function ($enrolledSubject) {
-            return $enrolledSubject->scheduledSubject->curriculumSubject->subject->units;
-        });
+        $totalUnits = $enrollment->enrolledSubjects
+            ->map(function ($enrolledSubject) {
+                return $enrolledSubject->scheduledSubject->curriculumSubject->subject->units ?? 0;
+            })
+            ->sum();
+
 
         return Inertia::render('Enrollments/Show', [
             'enrollment' => $enrollment,
