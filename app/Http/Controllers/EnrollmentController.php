@@ -8,6 +8,7 @@ use App\Models\EnrolledSubject;
 use App\Models\Enrollment;
 use App\Models\ScheduledSubject;
 use App\Models\Student;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,17 @@ class EnrollmentController extends Controller
         if ($user->role === 'program_head') {
             return app(BlockController::class)->index($request);
         }
+
+        // STUDENT VIEW
+        if ($user->role === 'student') {
+            return $this->studentView();
+        }
+
+        // REGISTRAR / PROGRAM HEAD MANAGE VIEW
+        if (in_array($user->role, ['registrar', 'program_head'])) {
+            return $this->registrarManage($request);
+        }
+
 
         $query = Enrollment::with([
             'student.user',
@@ -289,5 +301,296 @@ class EnrollmentController extends Controller
             DB::rollBack();
             return back()->with('error', 'Failed to delete enrollment: ' . $e->getMessage());
         }
+    }
+
+
+        /**
+     * Registrar manage enrollment page
+     */
+    public function registrarManage(Request $request)
+    {
+        $studentId = $request->input('student_id');
+        $student = null;
+        $enrollment = null;
+        $blockSchedules = [];
+        $enrolledSubjects = [];
+
+        if ($studentId) {
+            // Find student by official_id
+            $user = User::where('official_id', $studentId)->first();
+
+            if ($user && $user->student) {
+                $student = $user->student;
+                $student->load(['user', 'program', 'block']);
+
+                // Get active term
+                $activeTerm = AcademicTerm::where('is_active', true)->first();
+
+                if ($activeTerm) {
+                    // Check if enrollment exists
+                    $enrollment = Enrollment::where('student_id', $student->id)
+                        ->where('academic_term_id', $activeTerm->id)
+                        ->first();
+
+                    if ($enrollment) {
+                        // Get block schedules
+                        if ($student->block_id) {
+                            $enrolledSubjectIds = $enrollment->enrolledSubjects()
+                                ->pluck('scheduled_subject_id')
+                                ->toArray();
+
+                            $blockSchedules = ScheduledSubject::where('block_id', $student->block_id)
+                                ->where('academic_term_id', $activeTerm->id)
+                                ->with([
+                                    'curriculumSubject.subject',
+                                    'instructor.user'
+                                ])
+                                ->get()
+                                ->map(function ($schedule) use ($enrolledSubjectIds) {
+                                    $schedule->is_enrolled = in_array($schedule->id, $enrolledSubjectIds);
+                                    return $schedule;
+                                });
+                        }
+
+                        // Get enrolled subjects
+                        $enrolledSubjects = $enrollment->enrolledSubjects()
+                            ->with(['scheduledSubject.curriculumSubject.subject'])
+                            ->where('status', '!=', 'dropped')
+                            ->get();
+                    }
+                }
+            }
+        }
+
+        return Inertia::render('Enrollments/RegistrarManage', [
+            'student' => $student,
+            'enrollment' => $enrollment,
+            'blockSchedules' => $blockSchedules,
+            'enrolledSubjects' => $enrolledSubjects,
+            'searchedId' => $studentId,
+        ]);
+    }
+
+    /**
+     * Create enrollment for student (Registrar)
+     */
+    public function registrarCreateEnrollment(Student $student)
+    {
+        $activeTerm = AcademicTerm::where('is_active', true)->first();
+
+        if (!$activeTerm) {
+            return back()->with('error', 'No active academic term found.');
+        }
+
+        // Check if already enrolled
+        $existing = Enrollment::where('student_id', $student->id)
+            ->where('academic_term_id', $activeTerm->id)
+            ->first();
+
+        if ($existing) {
+            return back()->with('error', 'Student is already enrolled in this term.');
+        }
+
+        // Create enrollment
+        $enrollment = Enrollment::create([
+            'student_id' => $student->id,
+            'academic_term_id' => $activeTerm->id,
+            'block_id' => $student->block_id,
+            'year_level' => $student->year_level,
+            'status' => 'enrolled',
+            'enrolled_at' => now(),
+        ]);
+
+        return back()->with('success', 'You have successfully enrolled a student.');
+    }
+
+    /**
+     * Enroll student in a subject (Registrar)
+     */
+    public function enrollSubject(Request $request, Enrollment $enrollment)
+    {
+        $validated = $request->validate([
+            'scheduled_subject_id' => 'required|exists:scheduled_subjects,id',
+        ]);
+
+        $scheduledSubject = ScheduledSubject::findOrFail($validated['scheduled_subject_id']);
+
+        // Check if already enrolled
+        $existing = EnrolledSubject::where('enrollment_id', $enrollment->id)
+            ->where('scheduled_subject_id', $scheduledSubject->id)
+            ->whereIn('status', ['enrolled', 'completed'])
+            ->first();
+
+        if ($existing) {
+            return back()->with('error', 'Student is already enrolled in this subject.');
+        }
+
+        // Validate prerequisites
+        $curriculumSubject = $scheduledSubject->curriculumSubject;
+        $prerequisites = $curriculumSubject->prerequisites;
+
+        foreach ($prerequisites as $prereq) {
+            $hasCompleted = EnrolledSubject::whereHas('enrollment', function ($q) use ($enrollment) {
+                    $q->where('student_id', $enrollment->student_id);
+                })
+                ->whereHas('scheduledSubject', function ($q) use ($prereq) {
+                    $q->where('curriculum_subject_id', $prereq->id);
+                })
+                ->where('status', 'completed')
+                ->where('final_grade', '>=', 75)
+                ->exists();
+
+            if (!$hasCompleted) {
+                return back()->with('error', 'Student has not completed the prerequisite: ' . $prereq->subject->code);
+            }
+        }
+
+        // Check schedule conflicts
+        $conflicts = EnrolledSubject::where('enrollment_id', $enrollment->id)
+            ->where('status', 'enrolled')
+            ->whereHas('scheduledSubject', function ($q) use ($scheduledSubject) {
+                $q->where('day', $scheduledSubject->day)
+                    ->where(function ($query) use ($scheduledSubject) {
+                        $query->whereBetween('time_start', [$scheduledSubject->time_start, $scheduledSubject->time_end])
+                            ->orWhereBetween('time_end', [$scheduledSubject->time_start, $scheduledSubject->time_end])
+                            ->orWhere(function ($q) use ($scheduledSubject) {
+                                $q->where('time_start', '<=', $scheduledSubject->time_start)
+                                    ->where('time_end', '>=', $scheduledSubject->time_end);
+                            });
+                    });
+            })
+            ->exists();
+
+        if ($conflicts) {
+            return back()->with('error', 'Schedule conflict detected.');
+        }
+
+        // Check unit limit (e.g., max 24 units)
+        $currentUnits = $enrollment->enrolledSubjects()
+            ->where('status', 'enrolled')
+            ->get()
+            ->sum(function ($es) {
+                return $es->scheduledSubject->curriculumSubject->subject->units;
+            });
+
+        $newUnits = $scheduledSubject->curriculumSubject->subject->units;
+
+        if ($currentUnits + $newUnits > 24) {
+            return back()->with('error', 'Unit limit exceeded. Maximum is 24 units.');
+        }
+
+        // Enroll
+        EnrolledSubject::create([
+            'enrollment_id' => $enrollment->id,
+            'scheduled_subject_id' => $scheduledSubject->id,
+            'status' => 'enrolled',
+        ]);
+
+        $subjectName = $scheduledSubject->curriculumSubject->subject->title;
+
+        return back()->with('success', "You have successfully enrolled the student in {$subjectName}.");
+    }
+
+    /**
+     * Drop student from subject (Registrar)
+     */
+    public function dropSubject(EnrolledSubject $enrolledSubject)
+    {
+        // Check if grades exist
+        if ($enrolledSubject->midterm_grade || $enrolledSubject->final_grade) {
+            return back()->with('error', 'Cannot drop subject with existing grades.');
+        }
+
+        $subjectName = $enrolledSubject->scheduledSubject->curriculumSubject->subject->title;
+
+        $enrolledSubject->update(['status' => 'dropped']);
+
+        return back()->with('success', "You have successfully dropped the student from {$subjectName}.");
+    }
+
+    /**
+     * Search subjects for adding (Registrar)
+     */
+    public function searchSubject(Request $request)
+    {
+        $enrollmentId = $request->input('enrollment_id');
+        $subjectCode = $request->input('subject_code');
+
+        $enrollment = Enrollment::findOrFail($enrollmentId);
+        $activeTerm = $enrollment->academicTerm;
+
+        // Search for subjects
+        $availableSchedules = ScheduledSubject::where('academic_term_id', $activeTerm->id)
+            ->whereHas('curriculumSubject.subject', function ($q) use ($subjectCode) {
+                $q->where('code', 'like', "%{$subjectCode}%");
+            })
+            ->with(['curriculumSubject.subject', 'block', 'instructor.user'])
+            ->get()
+            ->map(function ($schedule) {
+                return [
+                    'id' => $schedule->id,
+                    'subject_code' => $schedule->curriculumSubject->subject->code,
+                    'subject_title' => $schedule->curriculumSubject->subject->title,
+                    'day' => $schedule->day,
+                    'time_start' => $schedule->time_start,
+                    'time_end' => $schedule->time_end,
+                    'room' => $schedule->room,
+                    'block_code' => $schedule->block->code,
+                ];
+            });
+
+        return back()->with([
+            'availableSchedules' => $availableSchedules,
+        ]);
+    }
+
+    /**
+     * Student enrollment view
+     */
+    public function studentView()
+    {
+        $user = Auth::user();
+        $student = $user->student;
+
+        if (!$student) {
+            abort(403, 'Student profile not found.');
+        }
+
+        $activeTerm = AcademicTerm::where('is_active', true)->first();
+
+        if (!$activeTerm) {
+            return Inertia::render('Enrollments/StudentView', [
+                'enrollment' => null,
+                'message' => 'No active academic term.',
+            ]);
+        }
+
+        $enrollment = Enrollment::where('student_id', $student->id)
+            ->where('academic_term_id', $activeTerm->id)
+            ->with([
+                'academicTerm',
+                'block',
+                'student.program',
+                'enrolledSubjects' => function ($q) {
+                    $q->with([
+                        'scheduledSubject.curriculumSubject.subject',
+                        'scheduledSubject.instructor.user'
+                    ])
+                    ->where('status', '!=', 'dropped');
+                }
+            ])
+            ->first();
+
+        if (!$enrollment) {
+            return Inertia::render('Enrollments/StudentView', [
+                'enrollment' => null,
+                'message' => 'Enrollment not yet finalized. Please contact the Registrar.',
+            ]);
+        }
+
+        return Inertia::render('Enrollments/StudentView', [
+            'enrollment' => $enrollment,
+            'message' => null,
+        ]);
     }
 }

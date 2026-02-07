@@ -55,6 +55,24 @@ Route::middleware('auth')->group(function () {
         Route::post('terms/{term}/activate', [AcademicTermController::class, 'activate'])
             ->name('terms.activate');
 
+        //enrollments
+        Route::get('enrollments/manage', [EnrollmentController::class, 'registrarManage'])
+        ->name('enrollments.registrar-manage');
+        Route::post('enrollments/{student}/create', [EnrollmentController::class, 'registrarCreateEnrollment'])
+            ->name('enrollments.registrar-create');
+        Route::post('enrollments/{enrollment}/enroll-subject', [EnrollmentController::class, 'enrollSubject'])
+            ->name('enrollments.enroll-subject');
+        Route::delete('enrolled-subjects/{enrolledSubject}/drop', [EnrollmentController::class, 'dropSubject'])
+            ->name('enrollments.drop-subject');
+        Route::get('enrollments/search-subject', [EnrollmentController::class, 'searchSubject'])
+            ->name('enrollments.search-subject');
+
+        //grades
+        Route::get('grades/registrar', [GradeController::class, 'index'])
+            ->name('grades.registrar');
+        Route::put('grades/{enrolledSubject}/update-single', [GradeController::class, 'updateSingleGrade'])
+            ->name('grades.update-single');
+
         // Reports
         Route::prefix('reports')->name('reports.')->group(function () {
             Route::get('enrollment-statistics', [ReportController::class, 'enrollmentStatistics'])
@@ -102,6 +120,14 @@ Route::middleware('auth')->group(function () {
         Route::get('scheduled-subjects/curriculum-subjects',
             [ScheduledSubjectController::class, 'getCurriculumSubjects'])
             ->name('scheduled-subjects.curriculum-subjects');
+
+        //grade routes
+        Route::get('grades/instructor', [GradeController::class, 'index'])
+            ->name('grades.instructor');
+        Route::get('grades/{scheduledSubject}/submit', [GradeController::class, 'edit'])
+            ->name('grades.submit');
+        Route::post('grades/{scheduledSubject}/save', [GradeController::class, 'update'])
+            ->name('grades.save');
     });
 
     // Grades
@@ -126,6 +152,20 @@ Route::middleware('auth')->group(function () {
         Route::post('accounts/{user}/reset-password', [AccountController::class, 'resetPassword'])
             ->name('accounts.reset-password');
     });
+
+    // (Student)
+    Route::middleware('role:student')->group(function () {
+        //enrollments
+        Route::get('my-enrollment', [EnrollmentController::class, 'studentView'])
+            ->name('enrollments.student-view');
+        Route::get('enrollments/{enrollment}/download-schedule', [EnrollmentController::class, 'downloadSchedule'])
+            ->name('enrollments.download-schedule');
+
+        //grades
+        Route::get('my-grades', [GradeController::class, 'index'])
+            ->name('grades.student');
+    });
+
 
 
     //     // Department routes (IT Admin only)
