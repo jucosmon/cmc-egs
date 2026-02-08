@@ -103,7 +103,9 @@ Route::middleware('auth')->group(function () {
     // General enrollment routes
     Route::middleware('role:student,registrar,program_head')->group(function () {
         Route::get('enrollments', [EnrollmentController::class, 'index'])->name('enrollments.index');
-        Route::get('enrollments/{enrollment}', [EnrollmentController::class, 'show'])->name('enrollments.show');
+        Route::get('enrollments/{enrollment}', [EnrollmentController::class, 'show'])
+            ->whereNumber('enrollment')
+            ->name('enrollments.show');
         Route::get('enrollments/create', [EnrollmentController::class, 'create'])->name('enrollments.create');
         Route::post('enrollments', [EnrollmentController::class, 'store'])->name('enrollments.store');
         Route::get('enrollments/subjects/available', [EnrollmentController::class, 'getAvailableSubjects'])
@@ -148,6 +150,12 @@ Route::middleware('auth')->group(function () {
             ->name('grades.class-sheet');
     });
 
+    // Instructor enrollment view
+    Route::middleware('role:instructor')->group(function () {
+        Route::get('enrollments/instructor-classes', [EnrollmentController::class, 'instructorClasses'])
+            ->name('enrollments.instructor-classes');
+    });
+
     // Accounts (IT Admin, Dean, Program Head, Registrar)
     Route::middleware('role:it_admin,dean,program_head,registrar')->group(function () {
         Route::resource('accounts', AccountController::class);
@@ -161,6 +169,7 @@ Route::middleware('auth')->group(function () {
         Route::get('my-enrollment', [EnrollmentController::class, 'studentView'])
             ->name('enrollments.student-view');
         Route::get('enrollments/{enrollment}/download-schedule', [EnrollmentController::class, 'downloadSchedule'])
+            ->whereNumber('enrollment')
             ->name('enrollments.download-schedule');
 
         //grades

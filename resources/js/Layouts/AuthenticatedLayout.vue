@@ -214,8 +214,16 @@ const visibleUserTypes = computed(() => {
                                 <!-- Class (Instructor only) -->
                                 <NavLink
                                     v-if="canAccessClass"
-                                    :href="safeRoute('classes.index')"
-                                    :active="safeCurrent('classes.*')"
+                                    :href="
+                                        safeRoute(
+                                            'enrollments.instructor-classes',
+                                        )
+                                    "
+                                    :active="
+                                        safeCurrent(
+                                            'enrollments.instructor-classes',
+                                        )
+                                    "
                                 >
                                     Classes
                                 </NavLink>
@@ -499,8 +507,10 @@ const visibleUserTypes = computed(() => {
                         <!-- Classes (Instructor) -->
                         <ResponsiveNavLink
                             v-if="canAccessClass"
-                            :href="safeRoute('classes.index')"
-                            :active="safeCurrent('classes.*')"
+                            :href="safeRoute('enrollments.instructor-classes')"
+                            :active="
+                                safeCurrent('enrollments.instructor-classes')
+                            "
                         >
                             Classes
                         </ResponsiveNavLink>

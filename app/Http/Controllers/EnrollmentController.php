@@ -380,6 +380,143 @@ class EnrollmentController extends Controller
     }
 
     /**
+     * Instructor class enrollment view
+     */
+    public function instructorClasses(Request $request)
+    {
+        $user = Auth::user();
+        $instructor = $user->instructor;
+
+        if (!$instructor) {
+            abort(403, 'Instructor account not found.');
+        }
+
+        $activeTerm = AcademicTerm::where('is_active', true)->first();
+        $termId = $request->input('academic_term_id') ?? ($activeTerm ? $activeTerm->id : null);
+
+        $classesQuery = ScheduledSubject::where('instructor_id', $instructor->id)
+            ->with([
+                'academicTerm',
+                'block.program',
+                'curriculumSubject.subject',
+            ])
+            ->withCount([
+                'enrolledSubjects as enrolled_count' => function ($q) {
+                    $q->where('status', '!=', 'dropped');
+                },
+            ]);
+
+        if ($termId) {
+            $classesQuery->where('academic_term_id', $termId);
+        }
+
+        $classes = $classesQuery->get()->map(function ($class) {
+            $termLabel = $class->academicTerm
+                ? $class->academicTerm->academic_year . ' - ' . ucfirst($class->academicTerm->semester)
+                : null;
+
+            return [
+                'id' => $class->id,
+                'subject_id' => $class->curriculum_subject_id,
+                'subject_code' => $class->curriculumSubject->subject->code,
+                'subject_title' => $class->curriculumSubject->subject->title,
+                'units' => $class->curriculumSubject->subject->units,
+                'block_code' => $class->block->code,
+                'program_name' => $class->block->program->name,
+                'day' => $class->day,
+                'time' => $class->time_start . ' - ' . $class->time_end,
+                'room' => $class->room,
+                'student_count' => $class->enrolled_count,
+                'academic_term' => $termLabel,
+            ];
+        });
+
+        $classesBySubject = $classes
+            ->groupBy('subject_id')
+            ->map(function ($items) {
+                $first = $items->first();
+
+                return [
+                    'subject_id' => $first['subject_id'],
+                    'subject_code' => $first['subject_code'],
+                    'subject_title' => $first['subject_title'],
+                    'units' => $first['units'],
+                    'schedules' => $items->values(),
+                ];
+            })
+            ->values();
+
+        $selectedSchedule = null;
+        $students = [];
+        $selectedScheduleId = $request->input('scheduled_subject_id');
+
+        if ($selectedScheduleId) {
+            $selectedClass = ScheduledSubject::where('instructor_id', $instructor->id)
+                ->with([
+                    'academicTerm',
+                    'block.program',
+                    'curriculumSubject.subject',
+                    'enrolledSubjects' => function ($q) {
+                        $q->with('enrollment.student.user', 'enrollment.student.program', 'enrollment.student.block')
+                            ->where('status', '!=', 'dropped');
+                    },
+                ])
+                ->withCount([
+                    'enrolledSubjects as enrolled_count' => function ($q) {
+                        $q->where('status', '!=', 'dropped');
+                    },
+                ]);
+
+            if ($termId) {
+                $selectedClass->where('academic_term_id', $termId);
+            }
+
+            $selectedClass = $selectedClass->findOrFail($selectedScheduleId);
+
+            $selectedSchedule = [
+                'id' => $selectedClass->id,
+                'subject_code' => $selectedClass->curriculumSubject->subject->code,
+                'subject_title' => $selectedClass->curriculumSubject->subject->title,
+                'block_code' => $selectedClass->block->code,
+                'program_name' => $selectedClass->block->program->name,
+                'day' => $selectedClass->day,
+                'time' => $selectedClass->time_start . ' - ' . $selectedClass->time_end,
+                'room' => $selectedClass->room,
+                'student_count' => $selectedClass->enrolled_count,
+                'academic_term' => $selectedClass->academicTerm
+                    ? $selectedClass->academicTerm->academic_year . ' - ' . ucfirst($selectedClass->academicTerm->semester)
+                    : null,
+            ];
+
+            $students = $selectedClass->enrolledSubjects->map(function ($enrolledSubject) {
+                $student = $enrolledSubject->enrollment->student;
+                $user = $student->user;
+
+                return [
+                    'id' => $enrolledSubject->id,
+                    'official_id' => $user->official_id ?? $student->id,
+                    'name' => trim($user->first_name . ' ' . $user->last_name),
+                    'program_code' => $student->program?->code,
+                    'year_level' => $enrolledSubject->enrollment->year_level,
+                    'block_code' => $student->block?->code,
+                    'status' => $enrolledSubject->status,
+                ];
+            })->values();
+        }
+
+        $academicTerms = AcademicTerm::latest('academic_year')->get();
+
+        return Inertia::render('Enrollments/InstructorClass', [
+            'classesBySubject' => $classesBySubject,
+            'selectedSchedule' => $selectedSchedule,
+            'students' => $students,
+            'academicTerms' => $academicTerms,
+            'activeTerm' => $activeTerm,
+            'filters' => $request->only(['academic_term_id', 'scheduled_subject_id']),
+        ]);
+    }
+
+    /**
      * Create enrollment for student (Registrar)
      */
     public function registrarCreateEnrollment(Student $student)
