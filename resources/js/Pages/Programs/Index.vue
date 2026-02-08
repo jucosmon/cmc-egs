@@ -28,7 +28,7 @@ const deleteProgram = (id) => {
                                 :href="route('programs.create')"
                                 class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
                             >
-                                Create Program
+                                Create
                             </Link>
                         </div>
 

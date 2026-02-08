@@ -57,6 +57,15 @@ const getRoleLabel = (role) => {
     };
     return labels[role] || role;
 };
+
+const getFullNameWithMiddleInitial = () => {
+    const first = props.account.first_name || "";
+    const middle = props.account.middle_name || "";
+    const last = props.account.last_name || "";
+    const middleInitial = middle ? `${middle.charAt(0)}.` : "";
+
+    return [first, middleInitial, last].filter(Boolean).join(" ");
+};
 </script>
 
 <template>
@@ -109,9 +118,60 @@ const getRoleLabel = (role) => {
                             <h1 class="text-3xl font-bold text-gray-900">
                                 {{ props.account.full_name }}
                             </h1>
-                            <p class="mt-2 text-gray-600">
-                                {{ getRoleLabel(props.account.role) }} Account
-                            </p>
+                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                                <span
+                                    class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700"
+                                >
+                                    {{ getRoleLabel(props.account.role) }}
+                                </span>
+                            </div>
+                            <div
+                                class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3"
+                            >
+                                <div class="rounded-md bg-gray-50 px-4 py-3">
+                                    <p
+                                        class="text-xs font-medium text-gray-500"
+                                    >
+                                        Full Name
+                                    </p>
+                                    <p
+                                        class="mt-1 text-sm font-semibold text-gray-900"
+                                    >
+                                        {{ getFullNameWithMiddleInitial() }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md bg-gray-50 px-4 py-3">
+                                    <p
+                                        class="text-xs font-medium text-gray-500"
+                                    >
+                                        Official ID
+                                    </p>
+                                    <p
+                                        class="mt-1 text-sm font-semibold text-gray-900"
+                                    >
+                                        {{ props.account.official_id || "N/A" }}
+                                    </p>
+                                </div>
+                                <div class="rounded-md bg-gray-50 px-4 py-3">
+                                    <p
+                                        class="text-xs font-medium text-gray-500"
+                                    >
+                                        Status
+                                    </p>
+                                    <p
+                                        class="mt-1 text-sm font-semibold text-gray-900"
+                                    >
+                                        {{
+                                            props.account.is_active ===
+                                            undefined
+                                                ? "N/A"
+                                                : props.account.is_active
+                                                  ? "Active"
+                                                  : "Inactive"
+                                        }}
+                                    </p>
+                                </div>
+                            </div>
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <button
                                     type="button"

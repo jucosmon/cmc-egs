@@ -52,7 +52,7 @@ const deleteSubject = (id) => {
                                 :href="route('subjects.create')"
                                 class="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
                             >
-                                Create Subject
+                                Create
                             </Link>
                         </div>
 

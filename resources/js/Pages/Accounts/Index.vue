@@ -75,7 +75,7 @@ const formatDate = (date) => {
         <Head title="Manage Accounts" />
 
         <div class="py-12">
-            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <!-- Page Header -->
                 <div class="mb-8">
                     <h1 class="text-4xl font-bold text-gray-900">
@@ -152,7 +152,9 @@ const formatDate = (date) => {
 
                 <!-- User Type Tabs -->
                 <div class="mb-8 border-b border-gray-200">
-                    <div class="flex space-x-8">
+                    <div
+                        class="-mx-4 flex space-x-6 overflow-x-auto pb-2 px-4 sm:mx-0 sm:px-0"
+                    >
                         <Link
                             v-for="type in visibleUserTypes"
                             :key="type.value"
@@ -160,7 +162,7 @@ const formatDate = (date) => {
                                 route('accounts.index', { type: type.value })
                             "
                             :class="[
-                                'px-1 py-4 border-b-2 font-medium text-sm',
+                                'whitespace-nowrap px-1 py-4 border-b-2 font-medium text-sm',
                                 selectedType === type.value
                                     ? 'border-indigo-500 text-indigo-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
