@@ -19,6 +19,7 @@ class ReportController extends Controller
         // Get filters
         $academicTermId = $request->input('academic_term_id');
         $programId = $request->input('program_id');
+        $yearLevel = $request->input('year_level');
 
         // Default to active term if not specified
         if (!$academicTermId) {
@@ -39,6 +40,10 @@ class ReportController extends Controller
             });
         }
 
+        if ($yearLevel) {
+            $enrollmentQuery->where('year_level', $yearLevel);
+        }
+
         // Overall statistics
         $stats = [
             'total_enrollments' => $enrollmentQuery->count(),
@@ -53,6 +58,9 @@ class ReportController extends Controller
             ->when($academicTermId, function ($q) use ($academicTermId) {
                 $q->where('enrollments.academic_term_id', $academicTermId);
             })
+            ->when($yearLevel, function ($q) use ($yearLevel) {
+                $q->where('enrollments.year_level', $yearLevel);
+            })
             ->groupBy('programs.id', 'programs.name')
             ->get();
 
@@ -65,6 +73,9 @@ class ReportController extends Controller
                 $q->whereHas('student', function ($query) use ($programId) {
                     $query->where('program_id', $programId);
                 });
+            })
+            ->when($yearLevel, function ($q) use ($yearLevel) {
+                $q->where('year_level', $yearLevel);
             })
             ->groupBy('year_level')
             ->orderBy('year_level')
@@ -80,6 +91,9 @@ class ReportController extends Controller
                     $query->where('program_id', $programId);
                 });
             })
+            ->when($yearLevel, function ($q) use ($yearLevel) {
+                $q->where('year_level', $yearLevel);
+            })
             ->groupBy('status')
             ->get();
 
@@ -94,6 +108,9 @@ class ReportController extends Controller
                 $q->whereHas('student', function ($query) use ($programId) {
                     $query->where('program_id', $programId);
                 });
+            })
+            ->when($yearLevel, function ($q) use ($yearLevel) {
+                $q->where('enrollments.year_level', $yearLevel);
             })
             ->groupBy('academic_terms.id', 'academic_terms.academic_year', 'academic_terms.semester')
             ->orderBy('academic_terms.academic_year', 'desc')
@@ -116,6 +133,7 @@ class ReportController extends Controller
             'filters' => [
                 'academic_term_id' => $academicTermId,
                 'program_id' => $programId,
+                'year_level' => $yearLevel,
             ],
         ]);
     }
@@ -125,7 +143,12 @@ class ReportController extends Controller
     {
         // Search for student
         $search = $request->input('search');
+        $studentId = $request->input('student_id');
         $students = null;
+        $studentRecord = null;
+        $torRecords = [];
+        $torSummary = null;
+        $torMessage = null;
 
         if ($search) {
             $students = Student::with(['user', 'program', 'block'])
@@ -138,9 +161,79 @@ class ReportController extends Controller
                 ->get();
         }
 
+        if ($studentId) {
+            $studentRecord = Student::with(['user', 'program', 'block'])->find($studentId);
+
+            if ($studentRecord) {
+                $enrollments = Enrollment::where('student_id', $studentRecord->id)
+                    ->with([
+                        'academicTerm',
+                        'enrolledSubjects' => function ($q) {
+                            $q->with('scheduledSubject.curriculumSubject.subject')
+                                ->where('status', 'completed')
+                                ->whereNotNull('final_grade');
+                        },
+                    ])
+                    ->orderBy('year_level')
+                    ->get();
+
+                $termGroups = $enrollments->groupBy(function ($enrollment) {
+                    return $enrollment->academicTerm->academic_year . ' - ' . ucfirst($enrollment->academicTerm->semester);
+                });
+
+                $totalUnits = 0;
+                $totalGradePoints = 0;
+                $totalSubjects = 0;
+
+                foreach ($termGroups as $term => $enrollmentsInTerm) {
+                    $subjects = [];
+                    foreach ($enrollmentsInTerm as $enrollment) {
+                        foreach ($enrollment->enrolledSubjects as $enrolledSubject) {
+                            $subject = $enrolledSubject->scheduledSubject->curriculumSubject->subject;
+                            $units = $subject->units;
+                            $grade = $enrolledSubject->final_grade;
+
+                            $subjects[] = [
+                                'code' => $subject->code,
+                                'title' => $subject->title,
+                                'units' => $units,
+                                'final_grade' => $grade,
+                                'remarks' => $grade >= 75 ? 'Passed' : 'Failed',
+                                'year_level' => $enrollment->year_level,
+                            ];
+
+                            $totalUnits += $units;
+                            $totalGradePoints += ($grade * $units);
+                            $totalSubjects += 1;
+                        }
+                    }
+
+                    $torRecords[] = [
+                        'term' => $term,
+                        'year_level' => $enrollmentsInTerm->first()->year_level ?? null,
+                        'subjects' => $subjects,
+                    ];
+                }
+
+                $overallGwa = $totalUnits > 0 ? $totalGradePoints / $totalUnits : 0;
+
+                $torSummary = [
+                    'total_units' => $totalUnits,
+                    'total_subjects' => $totalSubjects,
+                    'overall_gwa' => round($overallGwa, 2),
+                ];
+            } else {
+                $torMessage = 'No student found.';
+            }
+        }
+
         return Inertia::render('Reports/GenerateTOR', [
             'students' => $students,
             'search' => $search,
+            'studentRecord' => $studentRecord,
+            'torRecords' => $torRecords,
+            'torSummary' => $torSummary,
+            'torMessage' => $torMessage,
         ]);
     }
 
@@ -219,6 +312,7 @@ class ReportController extends Controller
     {
         $academicTermId = $request->input('academic_term_id');
         $programId = $request->input('program_id');
+        $yearLevel = $request->input('year_level');
 
         $term = AcademicTerm::find($academicTermId);
         $program = Program::find($programId);
@@ -236,6 +330,10 @@ class ReportController extends Controller
             });
         }
 
+        if ($yearLevel) {
+            $enrollmentQuery->where('year_level', $yearLevel);
+        }
+
         $stats = [
             'total_enrollments' => $enrollmentQuery->count(),
             'enrolled' => (clone $enrollmentQuery)->where('status', 'enrolled')->count(),
@@ -247,6 +345,9 @@ class ReportController extends Controller
             ->join('programs', 'students.program_id', '=', 'programs.id')
             ->when($academicTermId, function ($q) use ($academicTermId) {
                 $q->where('enrollments.academic_term_id', $academicTermId);
+            })
+            ->when($yearLevel, function ($q) use ($yearLevel) {
+                $q->where('enrollments.year_level', $yearLevel);
             })
             ->groupBy('programs.id', 'programs.name')
             ->get();
@@ -260,6 +361,9 @@ class ReportController extends Controller
                     $query->where('program_id', $programId);
                 });
             })
+            ->when($yearLevel, function ($q) use ($yearLevel) {
+                $q->where('year_level', $yearLevel);
+            })
             ->groupBy('year_level')
             ->orderBy('year_level')
             ->get();
@@ -267,6 +371,7 @@ class ReportController extends Controller
         $pdf = PDF::loadView('reports.enrollment-statistics', [
             'term' => $term,
             'program' => $program,
+            'yearLevel' => $yearLevel,
             'stats' => $stats,
             'byProgram' => $byProgram,
             'byYearLevel' => $byYearLevel,
