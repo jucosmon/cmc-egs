@@ -28,6 +28,7 @@ const props = defineProps({
     activeTerm: Object,
     instructors: Array,
     filters: Object,
+    noProgramAssigned: Boolean,
 });
 
 // Modals
@@ -420,6 +421,7 @@ const getAutoBlockCode = () => {
                                 </p>
                             </div>
                             <button
+                                v-if="!noProgramAssigned"
                                 @click="openCreateBlock"
                                 class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                             >
@@ -429,9 +431,20 @@ const getAutoBlockCode = () => {
                     </div>
                 </div>
 
+                <!-- No Program Assigned -->
+                <div
+                    v-if="noProgramAssigned"
+                    class="bg-amber-50 border border-amber-200 rounded-lg p-4"
+                >
+                    <p class="text-amber-800">
+                        No program assigned to your account yet. Please contact
+                        the registrar or IT admin to assign a program.
+                    </p>
+                </div>
+
                 <!-- No Active Term Warning -->
                 <div
-                    v-if="!activeTerm"
+                    v-else-if="!activeTerm"
                     class="bg-yellow-50 border border-yellow-200 rounded-lg p-4"
                 >
                     <p class="text-yellow-800">

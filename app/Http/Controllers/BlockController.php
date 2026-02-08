@@ -25,7 +25,14 @@ class BlockController extends Controller
             $programIds = Program::where('program_head_id', $user->id)->pluck('id');
 
             if ($programIds->isEmpty()) {
-                abort(403, 'No program assigned to this Program Head.');
+                return Inertia::render('Enrollments/ProgramHeadManage', [
+                    'blocks' => Block::query()->whereNull('id')->paginate(15),
+                    'programs' => [],
+                    'activeTerm' => AcademicTerm::where('is_active', true)->first(),
+                    'instructors' => Instructor::with('user')->active()->get(),
+                    'filters' => $request->only(['program_id', 'status', 'admission_year']),
+                    'noProgramAssigned' => true,
+                ]);
             }
 
             $query->whereIn('program_id', $programIds);
@@ -62,6 +69,7 @@ class BlockController extends Controller
             'activeTerm' => AcademicTerm::where('is_active', true)->first(),
             'instructors' => Instructor::with('user')->active()->get(),
             'filters' => $request->only(['program_id', 'status', 'admission_year']),
+            'noProgramAssigned' => false,
         ]);
     }
 
