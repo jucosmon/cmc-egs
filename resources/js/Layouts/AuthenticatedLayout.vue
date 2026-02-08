@@ -43,6 +43,7 @@ const canAccessDepartmentAndProgram = computed(() => isITAdmin.value);
 const canAccessPrograms = computed(() => isDean.value);
 const canAccessProgram = computed(() => isProgramHead.value);
 const canAccessTerm = computed(() => isRegistrar.value);
+const canAccessSubjects = computed(() => isRegistrar.value);
 const canAccessEnrollment = computed(
     () => isStudent.value || isRegistrar.value || isProgramHead.value,
 );
@@ -200,6 +201,14 @@ const visibleUserTypes = computed(() => {
                                     :active="safeCurrent('terms.*')"
                                 >
                                     Terms
+                                </NavLink>
+
+                                <NavLink
+                                    v-if="canAccessSubjects"
+                                    :href="safeRoute('subjects.index')"
+                                    :active="safeCurrent('subjects.*')"
+                                >
+                                    Subjects
                                 </NavLink>
 
                                 <!-- Enrollment (Student, Registrar, Program Head) -->
@@ -493,6 +502,14 @@ const visibleUserTypes = computed(() => {
                             :active="safeCurrent('terms.*')"
                         >
                             Terms
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            v-if="canAccessSubjects"
+                            :href="safeRoute('subjects.index')"
+                            :active="safeCurrent('subjects.*')"
+                        >
+                            Subjects
                         </ResponsiveNavLink>
 
                         <!-- Enrollment -->

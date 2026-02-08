@@ -39,7 +39,6 @@ Route::middleware('auth')->group(function () {
         // IT Admin routes
     Route::middleware('role:it_admin')->group(function () {
         Route::resource('departments', DepartmentController::class);
-        Route::resource('subjects', SubjectController::class);
     });
 
     // Admin, Dean, Program Head - Programs
@@ -61,6 +60,8 @@ Route::middleware('auth')->group(function () {
         Route::resource('terms', AcademicTermController::class);
         Route::post('terms/{term}/activate', [AcademicTermController::class, 'activate'])
             ->name('terms.activate');
+
+        Route::resource('subjects', SubjectController::class);
 
         //enrollments
         Route::get('enrollments/manage', [EnrollmentController::class, 'registrarManage'])
