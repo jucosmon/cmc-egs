@@ -517,6 +517,7 @@ const getFullNameWithMiddleInitial = () => {
                         :status="status"
                         :account="props.account"
                         class="max-w-3xl"
+                        @updated="activePanel = 'view'"
                     />
                 </div>
 

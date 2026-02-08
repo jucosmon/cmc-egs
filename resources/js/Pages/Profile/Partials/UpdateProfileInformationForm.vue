@@ -18,8 +18,11 @@ const props = defineProps({
     },
 });
 
+const emit = defineEmits(["updated"]);
+
 const form = useForm({
     email: props.account.email || "",
+    personal_email: props.account.personal_email || "",
     first_name: props.account.first_name || "",
     middle_name: props.account.middle_name || "",
     last_name: props.account.last_name || "",
@@ -37,6 +40,15 @@ const form = useForm({
         return "";
     })(),
 });
+
+const submit = () => {
+    form.patch(route("profile.update"), {
+        preserveScroll: true,
+        onSuccess: () => {
+            emit("updated");
+        },
+    });
+};
 </script>
 
 <template>
@@ -49,10 +61,7 @@ const form = useForm({
             </p>
         </header>
 
-        <form
-            @submit.prevent="form.patch(route('profile.update'))"
-            class="mt-6 space-y-6"
-        >
+        <form @submit.prevent="submit" class="mt-6 space-y-6">
             <div>
                 <InputLabel for="email" value="Email" />
 
@@ -66,6 +75,23 @@ const form = useForm({
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
+            </div>
+
+            <div>
+                <InputLabel for="personal_email" value="Personal Email" />
+
+                <TextInput
+                    id="personal_email"
+                    type="email"
+                    class="mt-1 block w-full"
+                    v-model="form.personal_email"
+                    autocomplete="email"
+                />
+
+                <InputError
+                    class="mt-2"
+                    :message="form.errors.personal_email"
+                />
             </div>
 
             <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">

@@ -17,8 +17,18 @@ class PasswordController extends Controller
     {
         $validated = $request->validate([
             'current_password' => ['required', 'current_password'],
-            'password' => ['required', Password::defaults(), 'confirmed'],
+            'password' => [
+                'required',
+                Password::defaults()->letters()->numbers(),
+                'confirmed',
+            ],
         ]);
+
+        if (Hash::check($validated['password'], $request->user()->password)) {
+            return back()->withErrors([
+                'password' => 'New password must be different from the current password.',
+            ]);
+        }
 
         $request->user()->update([
             'password' => Hash::make($validated['password']),
