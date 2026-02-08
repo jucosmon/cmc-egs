@@ -446,7 +446,7 @@ class AccountController extends Controller
 
         $isStudent = $type === 'student';
 
-        $validated = $request->validate([
+        $rules = [
             'email' => 'required|email|unique:users,email,' . $account->id,
             'personal_email' => 'nullable|email|unique:users,personal_email,' . $account->id,
             'first_name' => 'required|string',
@@ -462,7 +462,13 @@ class AccountController extends Controller
             'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
             'status' => $isStudent ? 'required|in:regular,irregular,graduated' : 'nullable',
             'block_id' => $isStudent ? 'required|exists:blocks,id' : 'nullable',
-        ]);
+        ];
+
+        if ($type === 'program_head') {
+            $rules['program_id'] = 'nullable|exists:programs,id';
+        }
+
+        $validated = $request->validate($rules);
 
         // Update base user fields
         $account->update(array_filter($validated, function ($k) {
@@ -511,6 +517,11 @@ class AccountController extends Controller
             if (isset($validated['program_id']) && $validated['program_id']) {
                 $newProgram = \App\Models\Program::find($validated['program_id']);
                 if ($newProgram) {
+                    if ($newProgram->program_head_id && (int) $newProgram->program_head_id !== (int) $account->id) {
+                        throw ValidationException::withMessages([
+                            'program_id' => 'This program already has a program head. Remove the current assignment before selecting a new one.',
+                        ]);
+                    }
                     // if they had a different program previously, clear it
                     if ($program && $program->id !== $newProgram->id) {
                         $program->update(['program_head_id' => null]);

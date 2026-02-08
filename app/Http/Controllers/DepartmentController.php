@@ -48,10 +48,28 @@ class DepartmentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:150',
-            'code' => 'required|string|max:20|unique:departments,code',
-            'dean_id' => 'nullable|exists:users,id',
+            'name' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('departments', 'name'),
+            ],
+            'code' => [
+                'required',
+                'string',
+                'max:20',
+                Rule::unique('departments', 'code'),
+            ],
+            'dean_id' => [
+                'nullable',
+                'exists:users,id',
+                Rule::unique('departments', 'dean_id'),
+            ],
             'is_active' => 'boolean',
+        ], [
+            'name.unique' => 'Department name already exists.',
+            'code.unique' => 'Department code already exists.',
+            'dean_id.unique' => 'This dean is already assigned to another department.',
         ]);
 
         Department::create($validated);
@@ -97,7 +115,13 @@ class DepartmentController extends Controller
     {
 
         $validated = $request->validate([
-            'name' => 'sometimes|required|string|max:150',
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('departments', 'name')->ignore($department->id),
+            ],
             'code' => [
                 'sometimes',
                 'required',
@@ -105,8 +129,17 @@ class DepartmentController extends Controller
                 'max:20',
                 Rule::unique('departments', 'code')->ignore($department->id),
             ],
-            'dean_id' => 'sometimes|nullable|exists:users,id',
+            'dean_id' => [
+                'sometimes',
+                'nullable',
+                'exists:users,id',
+                Rule::unique('departments', 'dean_id')->ignore($department->id),
+            ],
             'is_active' => 'sometimes|boolean',
+        ], [
+            'name.unique' => 'Department name already exists.',
+            'code.unique' => 'Department code already exists.',
+            'dean_id.unique' => 'This dean is already assigned to another department.',
         ]);
 
         $department->update($validated);
@@ -119,7 +152,9 @@ class DepartmentController extends Controller
     {
         // Check if department has programs
         if ($department->programs()->count() > 0) {
-            return back()->with('error', 'Cannot delete department with existing programs.');
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'delete' => 'Cannot delete department with existing programs.',
+            ]);
         }
 
         $department->delete();

@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ProgramController extends Controller
@@ -95,8 +96,14 @@ class ProgramController extends Controller
             'duration_years' => 'required|integer|min:1|max:10',
             'description' => 'nullable|string',
             'department_id' => 'required|exists:departments,id',
-            'program_head_id' => 'nullable|exists:users,id',
+            'program_head_id' => [
+                'nullable',
+                'exists:users,id',
+                Rule::unique('programs', 'program_head_id'),
+            ],
             'is_active' => 'boolean',
+        ], [
+            'program_head_id.unique' => 'This program head is already assigned to another program.',
         ]);
 
         Program::create($validated);
@@ -192,8 +199,19 @@ class ProgramController extends Controller
             'duration_years' => 'required|integer|min:1|max:10',
             'description' => 'nullable|string',
             'department_id' => 'required|exists:departments,id',
-            'program_head_id' => 'nullable|exists:users,id',
+            'program_head_id' => [
+                'nullable',
+                'exists:users,id',
+                Rule::unique('programs', 'program_head_id')->ignore($program->id),
+                function ($attribute, $value, $fail) use ($program) {
+                    if ($program->program_head_id && $value && (int) $value !== (int) $program->program_head_id) {
+                        $fail('This program already has a program head. Remove the current assignment before selecting a new one.');
+                    }
+                },
+            ],
             'is_active' => 'boolean',
+        ], [
+            'program_head_id.unique' => 'This program head is already assigned to another program.',
         ]);
 
         $program->update($validated);

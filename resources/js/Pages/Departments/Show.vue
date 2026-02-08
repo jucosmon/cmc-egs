@@ -23,8 +23,12 @@ const deleteDepartment = () => {
                 alert("Department deleted successfully.");
                 router.visit(route("departments.index"));
             },
-            onError: () => {
-                alert("Failed to delete department.");
+            onError: (errors) => {
+                const message =
+                    errors?.delete ||
+                    errors?.message ||
+                    "Failed to delete department.";
+                alert(message);
             },
         },
     );
