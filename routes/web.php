@@ -22,10 +22,6 @@ Route::get('/', function () {
     ]);
 });
 
-// Route::get('/dashboard', function () {
-//     return Inertia::render('Dashboard');
-// })->middleware(['auth', 'verified'])->name('dashboard');
-
 Route::middleware('auth')->group(function () {
     Route::get('/unauthorized', function () {
         return response('Unauthorized', 403);
@@ -97,8 +93,7 @@ Route::middleware('auth')->group(function () {
     // Enrollment routes (Program Head specific)
     Route::middleware('role:program_head')->group(function () {
         Route::get('/enrollments', [BlockController::class, 'index'])->name('enrollments.index');
-        Route::get('/blocks/{block}/students', [BlockController::class, 'students'])->name('blocks.students');
-        Route::get('/blocks/{block}/term-history', [BlockController::class, 'termHistory'])->name('blocks.term-history');
+
         Route::get('program-head/instructor-loads', [ProgramHeadController::class, 'instructorLoads'])
             ->name('program-head.instructor-loads');
     });
