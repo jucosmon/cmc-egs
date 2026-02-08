@@ -503,7 +503,7 @@ class EnrollmentController extends Controller
 
         $subjectName = $enrolledSubject->scheduledSubject->curriculumSubject->subject->title;
 
-        $enrolledSubject->update(['status' => 'dropped']);
+        $enrolledSubject->delete();
 
         return back()->with('success', "You have successfully dropped the student from {$subjectName}.");
     }
