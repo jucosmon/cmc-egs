@@ -33,6 +33,11 @@ class EnrolledSubject extends Model
         return $this->belongsTo(ScheduledSubject::class);
     }
 
+    public function gradeChangeLogs()
+    {
+        return $this->hasMany(GradeChangeLog::class);
+    }
+
     // Scopes
     public function scopeEnrolled($query)
     {

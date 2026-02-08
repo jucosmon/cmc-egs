@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\AcademicTerm;
 use App\Models\EnrolledSubject;
 use App\Models\Enrollment;
+use App\Models\GradeChangeLog;
 use App\Models\ScheduledSubject;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -52,10 +54,12 @@ class GradeController extends Controller
         $enrollments = $query->latest()->get();
 
         $academicTerms = AcademicTerm::latest('academic_year')->get();
+        $activeTerm = AcademicTerm::where('is_active', true)->first();
 
         return Inertia::render('Grades/StudentView', [
             'enrollments' => $enrollments,
             'academicTerms' => $academicTerms,
+            'activeTermId' => $activeTerm?->id,
             'filters' => $request->only('academic_term_id'),
         ]);
     }
@@ -86,7 +90,12 @@ class GradeController extends Controller
             }
         }
 
-        $classes = $query->get();
+        $classes = $query->get()->map(function ($scheduledSubject) {
+            $term = $scheduledSubject->academicTerm;
+            $scheduledSubject->midterm_open = $term ? $term->isMidGradeOpen() : false;
+            $scheduledSubject->final_open = $term ? $term->isFinalGradeOpen() : false;
+            return $scheduledSubject;
+        });
 
         $academicTerms = AcademicTerm::latest('academic_year')->get();
         $activeTerm = AcademicTerm::where('is_active', true)->first();
@@ -102,43 +111,43 @@ class GradeController extends Controller
     // Registrar view - overview of all grades
     private function registrarGrades(Request $request)
     {
-        $query = EnrolledSubject::with([
-            'enrollment.student.user',
-            'enrollment.academicTerm',
-            'scheduledSubject.curriculumSubject.subject',
-            'scheduledSubject.instructor.user'
-        ]);
+        $searchedId = $request->input('student_id');
+        $student = null;
+        $enrollments = collect();
+        $searchMessage = null;
 
-        // Filter by term
-        if ($request->has('academic_term_id')) {
-            $query->whereHas('enrollment', function ($q) use ($request) {
-                $q->where('academic_term_id', $request->academic_term_id);
-            });
+        if ($searchedId) {
+            $student = Student::with(['user', 'program', 'block'])
+                ->whereHas('user', function ($q) use ($searchedId) {
+                    $q->where('official_id', $searchedId);
+                })
+                ->first();
+
+            if ($student) {
+                $enrollments = Enrollment::where('student_id', $student->id)
+                    ->with([
+                        'academicTerm',
+                        'enrolledSubjects' => function ($q) {
+                            $q->with([
+                                'scheduledSubject.curriculumSubject.subject',
+                                'scheduledSubject.instructor.user',
+                                'gradeChangeLogs.modifiedBy'
+                            ])
+                                ->orderBy('status');
+                        }
+                    ])
+                    ->latest('academic_term_id')
+                    ->get();
+            } else {
+                $searchMessage = 'No student found.';
+            }
         }
-
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        // Search by student name
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->whereHas('enrollment.student.user', function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('official_id', 'like', "%{$search}%");
-            });
-        }
-
-        $enrolledSubjects = $query->latest()->paginate(20);
-
-        $academicTerms = AcademicTerm::latest('academic_year')->get();
 
         return Inertia::render('Grades/RegistrarView', [
-            'enrolledSubjects' => $enrolledSubjects,
-            'academicTerms' => $academicTerms,
-            'filters' => $request->only(['academic_term_id', 'status', 'search']),
+            'student' => $student,
+            'enrollments' => $enrollments,
+            'searchedId' => $searchedId,
+            'searchMessage' => $searchMessage,
         ]);
     }
 
@@ -168,6 +177,10 @@ class GradeController extends Controller
             'scheduledSubject' => $scheduledSubject,
             'canEditMidterm' => $term->isMidGradeOpen() || $user->role === 'registrar',
             'canEditFinal' => $term->isFinalGradeOpen() || $user->role === 'registrar',
+            'midtermOpen' => $term->isMidGradeOpen(),
+            'finalOpen' => $term->isFinalGradeOpen(),
+            'midtermSubmittedAt' => $scheduledSubject->midterm_submitted_at,
+            'finalSubmittedAt' => $scheduledSubject->final_submitted_at,
         ]);
     }
 
@@ -182,10 +195,10 @@ class GradeController extends Controller
             abort(403, 'Unauthorized access.');
         }
 
-        // Check if grade submission is open (unless registrar)
-        if ($user->role !== 'registrar') {
-            $gradeType = $request->input('grade_type');
+        $gradeType = $request->input('grade_type');
 
+        // Check if grade submission is open and not submitted (unless registrar)
+        if ($user->role !== 'registrar') {
             if ($gradeType === 'midterm' && !$term->isMidGradeOpen()) {
                 return back()->with('error', 'Midterm grade submission period is not open.');
             }
@@ -193,14 +206,27 @@ class GradeController extends Controller
             if ($gradeType === 'final' && !$term->isFinalGradeOpen()) {
                 return back()->with('error', 'Final grade submission period is not open.');
             }
+
+            if ($gradeType === 'midterm' && $scheduledSubject->isMidtermSubmitted()) {
+                return back()->with('error', 'Midterm grades have already been submitted.');
+            }
+
+            if ($gradeType === 'final' && $scheduledSubject->isFinalSubmitted()) {
+                return back()->with('error', 'Final grades have already been submitted.');
+            }
         }
 
-        $validated = $request->validate([
+        $rules = [
             'grade_type' => 'required|in:midterm,final',
             'grades' => 'required|array',
             'grades.*.enrolled_subject_id' => 'required|exists:enrolled_subjects,id',
-            'grades.*.grade' => 'nullable|numeric|min:0|max:100',
-        ]);
+        ];
+
+        $rules['grades.*.grade'] = $user->role === 'registrar'
+            ? 'nullable|numeric|min:0|max:100'
+            : 'required|numeric|min:0|max:100';
+
+        $validated = $request->validate($rules);
 
         DB::beginTransaction();
         try {
@@ -224,6 +250,20 @@ class GradeController extends Controller
                 }
             }
 
+            if ($user->role === 'instructor') {
+                if ($validated['grade_type'] === 'midterm') {
+                    $scheduledSubject->update([
+                        'midterm_submitted_at' => now(),
+                        'midterm_submitted_by' => $user->id,
+                    ]);
+                } else {
+                    $scheduledSubject->update([
+                        'final_submitted_at' => now(),
+                        'final_submitted_by' => $user->id,
+                    ]);
+                }
+            }
+
             DB::commit();
 
             return back()->with('success', ucfirst($validated['grade_type']) . ' grades saved successfully.');
@@ -243,12 +283,40 @@ class GradeController extends Controller
         }
 
         $validated = $request->validate([
-            'midterm_grade' => 'nullable|numeric|min:0|max:100',
-            'final_grade' => 'nullable|numeric|min:0|max:100',
-            'status' => 'nullable|in:enrolled,dropped,completed',
+            'grade_period' => 'required|in:midterm,final',
+            'new_grade' => 'required|numeric|min:0|max:100',
+            'reason' => 'required|string|max:1000',
+            'attachment' => 'nullable|file|max:5120',
         ]);
 
-        $enrolledSubject->update($validated);
+        $oldGrade = $validated['grade_period'] === 'midterm'
+            ? $enrolledSubject->midterm_grade
+            : $enrolledSubject->final_grade;
+
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $attachmentPath = $request->file('attachment')
+                ->store('grade-change-attachments');
+        }
+
+        if ($validated['grade_period'] === 'midterm') {
+            $enrolledSubject->update(['midterm_grade' => $validated['new_grade']]);
+        } else {
+            $enrolledSubject->update([
+                'final_grade' => $validated['new_grade'],
+                'status' => $validated['new_grade'] !== null ? 'completed' : $enrolledSubject->status,
+            ]);
+        }
+
+        GradeChangeLog::create([
+            'enrolled_subject_id' => $enrolledSubject->id,
+            'grade_period' => $validated['grade_period'],
+            'old_grade' => $oldGrade,
+            'new_grade' => $validated['new_grade'],
+            'reason' => $validated['reason'],
+            'attachment_path' => $attachmentPath,
+            'modified_by' => $user->id,
+        ]);
 
         return back()->with('success', 'Grade updated successfully.');
     }
