@@ -8,6 +8,7 @@ use App\Models\EnrolledSubject;
 use App\Models\Enrollment;
 use App\Models\ScheduledSubject;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -149,7 +150,7 @@ class EnrollmentController extends Controller
 
         // Verify enrollment period is open
         $term = AcademicTerm::findOrFail($validated['academic_term_id']);
-        if (!$term->isEnrollmentOpen() && $user->role !== 'registrar') {
+        if (!$term->isEnrollmentOpen()) {
             return back()->with('error', 'Enrollment period is not currently open.');
         }
 
@@ -314,6 +315,9 @@ class EnrollmentController extends Controller
         $enrollment = null;
         $blockSchedules = [];
         $enrolledSubjects = [];
+        $searchMessage = null;
+        $activeTerm = AcademicTerm::where('is_active', true)->first();
+        $enrollmentOpen = $activeTerm ? $activeTerm->isEnrollmentOpen() : false;
 
         if ($studentId) {
             // Find student by official_id
@@ -322,9 +326,6 @@ class EnrollmentController extends Controller
             if ($user && $user->student) {
                 $student = $user->student;
                 $student->load(['user', 'program', 'block']);
-
-                // Get active term
-                $activeTerm = AcademicTerm::where('is_active', true)->first();
 
                 if ($activeTerm) {
                     // Check if enrollment exists
@@ -358,7 +359,11 @@ class EnrollmentController extends Controller
                             ->where('status', '!=', 'dropped')
                             ->get();
                     }
+                } else {
+                    $searchMessage = 'No active academic term found.';
                 }
+            } else {
+                $searchMessage = 'Student not found.';
             }
         }
 
@@ -368,6 +373,8 @@ class EnrollmentController extends Controller
             'blockSchedules' => $blockSchedules,
             'enrolledSubjects' => $enrolledSubjects,
             'searchedId' => $studentId,
+            'enrollmentOpen' => $enrollmentOpen,
+            'searchMessage' => $searchMessage,
         ]);
     }
 
@@ -380,6 +387,10 @@ class EnrollmentController extends Controller
 
         if (!$activeTerm) {
             return back()->with('error', 'No active academic term found.');
+        }
+
+        if (!$activeTerm->isEnrollmentOpen()) {
+            return back()->with('error', 'Enrollment period is already closed.');
         }
 
         // Check if already enrolled
@@ -412,6 +423,12 @@ class EnrollmentController extends Controller
         $validated = $request->validate([
             'scheduled_subject_id' => 'required|exists:scheduled_subjects,id',
         ]);
+
+        $activeTerm = $enrollment->academicTerm;
+
+        if (!$activeTerm || !$activeTerm->isEnrollmentOpen()) {
+            return back()->with('error', 'Enrollment period is already closed.');
+        }
 
         $scheduledSubject = ScheduledSubject::findOrFail($validated['scheduled_subject_id']);
 
@@ -503,6 +520,13 @@ class EnrollmentController extends Controller
 
         $subjectName = $enrolledSubject->scheduledSubject->curriculumSubject->subject->title;
 
+        $term = $enrolledSubject->enrollment->academicTerm;
+
+        if (!$term || !$term->isEnrollmentOpen()) {
+            $enrolledSubject->update(['status' => 'dropped']);
+            return back()->with('success', "You have successfully dropped the student from {$subjectName}.");
+        }
+
         $enrolledSubject->delete();
 
         return back()->with('success', "You have successfully dropped the student from {$subjectName}.");
@@ -513,34 +537,99 @@ class EnrollmentController extends Controller
      */
     public function searchSubject(Request $request)
     {
-        $enrollmentId = $request->input('enrollment_id');
-        $subjectCode = $request->input('subject_code');
+        $validated = $request->validate([
+            'enrollment_id' => 'required|exists:enrollments,id',
+            'subject_code' => 'nullable|string',
+        ]);
 
-        $enrollment = Enrollment::findOrFail($enrollmentId);
+        $enrollment = Enrollment::with(['student.program'])->findOrFail($validated['enrollment_id']);
         $activeTerm = $enrollment->academicTerm;
+        $subjectCode = trim($validated['subject_code'] ?? '');
 
-        // Search for subjects
-        $availableSchedules = ScheduledSubject::where('academic_term_id', $activeTerm->id)
-            ->whereHas('curriculumSubject.subject', function ($q) use ($subjectCode) {
+        $curriculum = $enrollment->student->program
+            ->curriculums()
+            ->where('is_active', true)
+            ->first();
+
+        if (!$curriculum) {
+            return response()->json([
+                'availableSchedules' => [],
+                'status' => 'no_curriculum',
+                'message' => 'No active curriculum found for this program.',
+            ]);
+        }
+
+        $curriculumSubjectsQuery = $curriculum->curriculumSubjects()->with('subject');
+
+        if ($subjectCode !== '') {
+            $curriculumSubjectsQuery->whereHas('subject', function ($q) use ($subjectCode) {
                 $q->where('code', 'like', "%{$subjectCode}%");
-            })
+            });
+        }
+
+        $curriculumSubjects = $curriculumSubjectsQuery->get();
+
+        if ($curriculumSubjects->isEmpty()) {
+            $subjectExists = $subjectCode !== ''
+                ? Subject::where('code', 'like', "%{$subjectCode}%")->exists()
+                : false;
+
+            return response()->json([
+                'availableSchedules' => [],
+                'status' => $subjectExists ? 'not_in_curriculum' : 'not_found',
+                'message' => $subjectExists
+                    ? 'Subject exists but is not part of the student\'s curriculum.'
+                    : 'Subject code does not exist.',
+            ]);
+        }
+
+        $scheduledSubjects = ScheduledSubject::where('academic_term_id', $activeTerm->id)
+            ->whereIn('curriculum_subject_id', $curriculumSubjects->pluck('id'))
             ->with(['curriculumSubject.subject', 'block', 'instructor.user'])
             ->get()
-            ->map(function ($schedule) {
-                return [
-                    'id' => $schedule->id,
-                    'subject_code' => $schedule->curriculumSubject->subject->code,
-                    'subject_title' => $schedule->curriculumSubject->subject->title,
-                    'day' => $schedule->day,
-                    'time_start' => $schedule->time_start,
-                    'time_end' => $schedule->time_end,
-                    'room' => $schedule->room,
-                    'block_code' => $schedule->block->code,
-                ];
-            });
+            ->groupBy('curriculum_subject_id');
 
-        return back()->with([
+        $availableSchedules = $curriculumSubjects
+            ->flatMap(function ($curriculumSubject) use ($scheduledSubjects) {
+                $subject = $curriculumSubject->subject;
+                $schedules = $scheduledSubjects->get($curriculumSubject->id, collect());
+
+                if ($schedules->isEmpty()) {
+                    return [[
+                        'id' => null,
+                        'curriculum_subject_id' => $curriculumSubject->id,
+                        'subject_code' => $subject->code,
+                        'subject_title' => $subject->title,
+                        'day' => null,
+                        'time_start' => null,
+                        'time_end' => null,
+                        'room' => null,
+                        'block_code' => null,
+                        'has_schedule' => false,
+                    ]];
+                }
+
+                return $schedules->map(function ($schedule) {
+                    return [
+                        'id' => $schedule->id,
+                        'curriculum_subject_id' => $schedule->curriculum_subject_id,
+                        'subject_code' => $schedule->curriculumSubject->subject->code,
+                        'subject_title' => $schedule->curriculumSubject->subject->title,
+                        'day' => $schedule->day,
+                        'time_start' => $schedule->time_start,
+                        'time_end' => $schedule->time_end,
+                        'room' => $schedule->room,
+                        'block_code' => optional($schedule->block)->code,
+                        'has_schedule' => true,
+                    ];
+                });
+            })
+            ->values();
+
+        return response()->json([
             'availableSchedules' => $availableSchedules,
+            'status' => 'found',
+            'message' => $availableSchedules->isEmpty() ? 'No matching subjects found.' : null,
         ]);
     }
 
@@ -565,6 +654,8 @@ class EnrollmentController extends Controller
             ]);
         }
 
+
+
         $enrollment = Enrollment::where('student_id', $student->id)
             ->where('academic_term_id', $activeTerm->id)
             ->with([
@@ -581,10 +672,16 @@ class EnrollmentController extends Controller
             ])
             ->first();
 
+        if (!$enrollment && !$activeTerm->isEnrollmentOpen()) {
+            return Inertia::render('Enrollments/StudentView', [
+                'enrollment' => null,
+                'message' => 'Enrollment period is closed.',
+            ]);
+        }
         if (!$enrollment) {
             return Inertia::render('Enrollments/StudentView', [
                 'enrollment' => null,
-                'message' => 'Enrollment not yet finalized. Please contact the Registrar.',
+                'message' => 'Not yet enrolled. Please contact the Registrar.',
             ]);
         }
 

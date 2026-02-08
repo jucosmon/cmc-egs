@@ -9,6 +9,8 @@ const props = defineProps({
     blockSchedules: Array,
     enrolledSubjects: Array,
     searchedId: String,
+    enrollmentOpen: Boolean,
+    searchMessage: String,
 });
 
 const searchForm = useForm({
@@ -30,6 +32,8 @@ const searchSubjectForm = useForm({
 });
 
 const availableSchedules = ref([]);
+const hasSearchedSubjects = ref(false);
+const subjectSearchMessage = ref("");
 
 // Search student
 const searchStudent = () => {
@@ -96,19 +100,22 @@ const dropSubject = () => {
 
 // Add subject (search)
 const searchSubject = () => {
-    router.get(
-        route("enrollments.search-subject"),
-        {
-            enrollment_id: props.enrollment.id,
-            subject_code: searchSubjectForm.subject_code,
-        },
-        {
-            preserveState: true,
-            onSuccess: (page) => {
-                availableSchedules.value = page.props.availableSchedules || [];
-            },
-        },
-    );
+    const subjectCode = searchSubjectForm.subject_code.trim();
+    const params = new URLSearchParams({
+        enrollment_id: props.enrollment.id,
+        subject_code: subjectCode,
+    });
+
+    hasSearchedSubjects.value = true;
+    subjectSearchMessage.value = "";
+    availableSchedules.value = [];
+
+    fetch(`${route("enrollments.search-subject")}?${params.toString()}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data) => {
+            availableSchedules.value = data?.availableSchedules || [];
+            subjectSearchMessage.value = data?.message || "";
+        });
 };
 
 const totalUnits = computed(() => {
@@ -152,6 +159,12 @@ const totalUnits = computed(() => {
                                 Search
                             </button>
                         </form>
+                        <p
+                            v-if="searchMessage"
+                            class="text-sm text-red-600 mt-2"
+                        >
+                            {{ searchMessage }}
+                        </p>
                     </div>
                 </div>
 
@@ -190,11 +203,15 @@ const totalUnits = computed(() => {
                                 No enrollment record found for this student.
                             </p>
                             <button
+                                v-if="enrollmentOpen"
                                 @click="createEnrollment"
                                 class="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700"
                             >
                                 Create Enrollment Record
                             </button>
+                            <p v-else class="text-sm text-red-600">
+                                Enrollment period is closed.
+                            </p>
                         </div>
 
                         <!-- View Enrollment Button -->
@@ -261,12 +278,21 @@ const totalUnits = computed(() => {
                                         </p>
                                     </div>
                                     <button
-                                        v-if="!schedule.is_enrolled"
+                                        v-if="
+                                            !schedule.is_enrolled &&
+                                            enrollmentOpen
+                                        "
                                         @click="confirmEnrollSubject(schedule)"
                                         class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                                     >
                                         Enroll
                                     </button>
+                                    <span
+                                        v-else-if="!schedule.is_enrolled"
+                                        class="px-4 py-2 bg-gray-100 text-gray-500 rounded-md"
+                                    >
+                                        Enrollment Closed
+                                    </span>
                                     <span
                                         v-else
                                         class="px-4 py-2 bg-green-100 text-green-800 rounded-md"
@@ -358,10 +384,17 @@ const totalUnits = computed(() => {
                             <!-- Add Subject Button -->
                             <button
                                 @click="showAddSubject = true"
+                                :disabled="!enrollmentOpen"
                                 class="mt-4 w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-md text-gray-600 hover:border-indigo-500 hover:text-indigo-600"
                             >
                                 + Add Subject
                             </button>
+                            <p
+                                v-if="!enrollmentOpen"
+                                class="text-sm text-red-600 mt-2"
+                            >
+                                Enrollment period is closed.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -466,14 +499,22 @@ const totalUnits = computed(() => {
                                 placeholder="Enter subject code..."
                                 class="flex-1 rounded-md border-gray-300"
                                 required
+                                :disabled="!enrollmentOpen"
                             />
                             <button
                                 type="submit"
+                                :disabled="!enrollmentOpen"
                                 class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                             >
                                 Search
                             </button>
                         </form>
+                        <p
+                            v-if="!enrollmentOpen"
+                            class="text-sm text-red-600 mb-4"
+                        >
+                            Enrollment period is closed.
+                        </p>
 
                         <div
                             v-if="availableSchedules.length > 0"
@@ -481,28 +522,62 @@ const totalUnits = computed(() => {
                         >
                             <div
                                 v-for="schedule in availableSchedules"
-                                :key="schedule.id"
+                                :key="
+                                    schedule.id ||
+                                    `curriculum-${schedule.curriculum_subject_id}`
+                                "
                                 class="flex items-center justify-between p-4 border rounded-lg"
                             >
                                 <div>
                                     <p class="font-semibold">
+                                        {{ schedule.subject_code }} -
                                         {{ schedule.subject_title }}
                                     </p>
-                                    <p class="text-sm text-gray-600">
+                                    <p
+                                        v-if="schedule.has_schedule"
+                                        class="text-sm text-gray-600"
+                                    >
                                         {{ schedule.day }} |
                                         {{ schedule.time_start }} -
                                         {{ schedule.time_end }} | Room
                                         {{ schedule.room }}
                                     </p>
+                                    <p v-else class="text-sm text-gray-500">
+                                        No schedule created yet
+                                    </p>
                                 </div>
                                 <button
+                                    v-if="
+                                        schedule.has_schedule && enrollmentOpen
+                                    "
                                     @click="confirmEnrollSubject(schedule)"
                                     class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                                 >
                                     Enroll
                                 </button>
+                                <span
+                                    v-else-if="!schedule.has_schedule"
+                                    class="px-4 py-2 bg-gray-100 text-gray-500 rounded-md"
+                                >
+                                    No Schedule
+                                </span>
+                                <span
+                                    v-else
+                                    class="px-4 py-2 bg-gray-100 text-gray-500 rounded-md"
+                                >
+                                    Enrollment Closed
+                                </span>
                             </div>
                         </div>
+                        <p
+                            v-else-if="hasSearchedSubjects"
+                            class="text-sm text-gray-600"
+                        >
+                            {{
+                                subjectSearchMessage ||
+                                "No matching subjects found."
+                            }}
+                        </p>
 
                         <button
                             @click="showAddSubject = false"

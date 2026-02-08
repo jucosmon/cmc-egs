@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class AcademicTerm extends Model
 {
@@ -60,20 +61,38 @@ class AcademicTerm extends Model
     // Methods
     public function isEnrollmentOpen()
     {
-        $today = now()->toDateString();
-        return $today >= $this->start_enrollment && $today <= $this->end_enrollment;
+        if (!$this->start_enrollment || !$this->end_enrollment) {
+            return false;
+        }
+
+        $start = Carbon::parse($this->start_enrollment)->startOfDay();
+        $end = Carbon::parse($this->end_enrollment)->endOfDay();
+
+        return now()->between($start, $end);
     }
 
     public function isMidGradeOpen()
     {
-        $today = now()->toDateString();
-        return $today >= $this->start_mid_grade && $today <= $this->end_mid_grade;
+        if (!$this->start_mid_grade || !$this->end_mid_grade) {
+            return false;
+        }
+
+        $start = Carbon::parse($this->start_mid_grade)->startOfDay();
+        $end = Carbon::parse($this->end_mid_grade)->endOfDay();
+
+        return now()->between($start, $end);
     }
 
     public function isFinalGradeOpen()
     {
-        $today = now()->toDateString();
-        return $today >= $this->start_final_grade && $today <= $this->end_final_grade;
+        if (!$this->start_final_grade || !$this->end_final_grade) {
+            return false;
+        }
+
+        $start = Carbon::parse($this->start_final_grade)->startOfDay();
+        $end = Carbon::parse($this->end_final_grade)->endOfDay();
+
+        return now()->between($start, $end);
     }
 
 }
