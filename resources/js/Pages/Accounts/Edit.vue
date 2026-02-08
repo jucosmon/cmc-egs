@@ -133,7 +133,7 @@ const showPrograms = computed(() =>
 const showDepartments = computed(
     () =>
         ["student", "instructor", "program_head"].includes(editingRole.value) &&
-        ["it_admin", "dean"].includes(currentUserRole.value),
+        ["it_admin", "dean", "registrar"].includes(currentUserRole.value),
 );
 
 const programOptions = computed(() => props.programs || []);

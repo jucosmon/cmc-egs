@@ -379,6 +379,7 @@ class AccountController extends Controller
                     ->get(['id', 'name', 'department_id']);
             }
         } elseif ($currentUser->role === 'registrar') {
+            $departments = Department::all()->pluck('name', 'id');
             $programs = Program::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'department_id']);
@@ -395,7 +396,7 @@ class AccountController extends Controller
 
         // Provide blocks and statuses when editing students (useful for registrars)
         if ($type === 'student') {
-            $programIds = $programs ? $programs->keys()->all() : [];
+            $programIds = $programs ? collect($programs)->pluck('id')->all() : [];
             $assignedBlockId = $account->student?->block_id;
             if (!count($programIds) && $account->student?->program_id) {
                 $programIds = [$account->student->program_id];
