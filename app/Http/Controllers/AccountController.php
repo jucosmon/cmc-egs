@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -176,25 +177,13 @@ class AccountController extends Controller
             }
         }
 
-        // Validate block before creating any records to avoid partial saves
+        // Resolve student block before creating any records to avoid partial saves
         $selectedBlock = null;
         if ($type === 'student' && isset($validated['program_id'])) {
-            $latestAdmissionYear = Block::where('program_id', $validated['program_id'])
-                ->where('status', 'active')
-                ->max('admission_year');
-            if ($validated['block_id']) {
-                $selectedBlock = Block::find($validated['block_id']);
-                if (!$selectedBlock || (int) $selectedBlock->program_id !== (int) $validated['program_id']) {
-                    return back()->withErrors([
-                        'block_id' => 'Selected block does not belong to the selected program.'
-                    ]);
-                }
-                if ($latestAdmissionYear && (int) $selectedBlock->admission_year !== (int) $latestAdmissionYear) {
-                    return back()->withErrors([
-                        'block_id' => 'Please select a block from the latest admission year.'
-                    ]);
-                }
-            }
+            $selectedBlock = $this->resolveStudentBlockForCreate(
+                (int) $validated['program_id'],
+                (int) $validated['block_id']
+            );
         }
 
         // Generate default password
@@ -223,7 +212,7 @@ class AccountController extends Controller
                     'program_id' => $validated['program_id'],
                     'year_level' => $validated['year_level'] ?? null,
                     'status' => $validated['status'] ?? null,
-                    'block_id' => $selectedBlock?->id,
+                    'block_id' => $selectedBlock->id,
                 ]);
             }
 
@@ -472,25 +461,24 @@ class AccountController extends Controller
         // Update related records depending on role
         if ($account->role === 'student') {
             $student = $account->student;
-            if (isset($validated['block_id']) && $validated['block_id']) {
-                $block = Block::find($validated['block_id']);
-                if (!$block || (int) $block->program_id !== (int) $validated['program_id']) {
-                    return back()->withErrors([
-                        'block_id' => 'Selected block does not belong to the selected program.'
-                    ]);
-                }
-            }
+            $resolvedBlock = $this->resolveStudentBlockForUpdate(
+                (int) $validated['program_id'],
+                (int) $validated['block_id']
+            );
             if ($student) {
                 $student->update([
                     'program_id' => $validated['program_id'] ?? $student->program_id,
                     'year_level' => $validated['year_level'] ?? $student->year_level,
                     'status' => $validated['status'] ?? $student->status,
-                    'block_id' => $validated['block_id'] ?? $student->block_id,
+                    'block_id' => $resolvedBlock->id,
                 ]);
             } elseif (isset($validated['program_id'])) {
                 \App\Models\Student::create([
                     'user_id' => $account->id,
                     'program_id' => $validated['program_id'],
+                    'year_level' => $validated['year_level'] ?? 1,
+                    'status' => $validated['status'] ?? 'regular',
+                    'block_id' => $resolvedBlock->id,
                 ]);
             }
         } elseif ($account->role === 'instructor') {
@@ -780,5 +768,45 @@ class AccountController extends Controller
                 }
             }
         }
+    }
+
+    private function resolveStudentBlockForCreate(int $programId, int $blockId): Block
+    {
+        $block = Block::where('id', $blockId)
+            ->where('program_id', $programId)
+            ->first();
+
+        if (!$block) {
+            throw ValidationException::withMessages([
+                'block_id' => 'Selected block does not belong to the selected program.'
+            ]);
+        }
+
+        $latestAdmissionYear = Block::where('program_id', $programId)
+            ->where('status', 'active')
+            ->max('admission_year');
+
+        if ($latestAdmissionYear && (int) $block->admission_year !== (int) $latestAdmissionYear) {
+            throw ValidationException::withMessages([
+                'block_id' => 'Please select a block from the latest admission year.'
+            ]);
+        }
+
+        return $block;
+    }
+
+    private function resolveStudentBlockForUpdate(int $programId, int $blockId): Block
+    {
+        $block = Block::where('id', $blockId)
+            ->where('program_id', $programId)
+            ->first();
+
+        if (!$block) {
+            throw ValidationException::withMessages([
+                'block_id' => 'Selected block does not belong to the selected program.'
+            ]);
+        }
+
+        return $block;
     }
 }

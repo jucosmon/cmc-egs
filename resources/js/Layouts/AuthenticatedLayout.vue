@@ -47,6 +47,7 @@ const canAccessSubjects = computed(() => isRegistrar.value);
 const canAccessEnrollment = computed(
     () => isStudent.value || isRegistrar.value || isProgramHead.value,
 );
+const canAccessInstructorLoads = computed(() => isProgramHead.value);
 const canAccessClass = computed(() => isInstructor.value);
 const canAccessGrades = computed(
     () => isInstructor.value || isRegistrar.value || isStudent.value,
@@ -218,6 +219,22 @@ const visibleUserTypes = computed(() => {
                                     :active="safeCurrent('enrollments.*')"
                                 >
                                     Enrollment
+                                </NavLink>
+
+                                <NavLink
+                                    v-if="canAccessInstructorLoads"
+                                    :href="
+                                        safeRoute(
+                                            'program-head.instructor-loads',
+                                        )
+                                    "
+                                    :active="
+                                        safeCurrent(
+                                            'program-head.instructor-loads',
+                                        )
+                                    "
+                                >
+                                    Instructor Loads
                                 </NavLink>
 
                                 <!-- Class (Instructor only) -->
@@ -519,6 +536,16 @@ const visibleUserTypes = computed(() => {
                             :active="safeCurrent('enrollments.*')"
                         >
                             Enrollment
+                        </ResponsiveNavLink>
+
+                        <ResponsiveNavLink
+                            v-if="canAccessInstructorLoads"
+                            :href="safeRoute('program-head.instructor-loads')"
+                            :active="
+                                safeCurrent('program-head.instructor-loads')
+                            "
+                        >
+                            Instructor Loads
                         </ResponsiveNavLink>
 
                         <!-- Classes (Instructor) -->
