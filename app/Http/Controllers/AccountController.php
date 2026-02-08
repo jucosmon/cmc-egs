@@ -367,21 +367,29 @@ class AccountController extends Controller
 
         if ($currentUser->role === 'it_admin') {
             $departments = Department::all()->pluck('name', 'id');
-            $programs = Program::all()->pluck('name', 'id');
+            $programs = Program::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'department_id']);
         } elseif ($currentUser->role === 'dean') {
             $department = $currentUser->departmentAsDean;
             if ($department) {
                 $departments = collect([$department->id => $department->name]);
-                $programs = $department->programs()->pluck('name', 'id');
+                $programs = $department->programs()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'department_id']);
             }
         } elseif ($currentUser->role === 'registrar') {
-            $programs = Program::query()->orderBy('name')->pluck('name', 'id');
+            $programs = Program::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'department_id']);
         }
 
         // Ensure program_id options are available when editing a program head
         if ($type === 'program_head' && $currentUser->role === 'it_admin') {
             if (!count($programs)) {
-                $programs = Program::all()->pluck('name', 'id');
+                $programs = Program::query()
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'department_id']);
             }
         }
 
@@ -389,15 +397,15 @@ class AccountController extends Controller
         if ($type === 'student') {
             $programIds = $programs ? $programs->keys()->all() : [];
             $assignedBlockId = $account->student?->block_id;
+            if (!count($programIds) && $account->student?->program_id) {
+                $programIds = [$account->student->program_id];
+            }
             $blocks = Block::query()
                 ->when(count($programIds), function ($query) use ($programIds) {
                     $query->whereIn('program_id', $programIds);
                 })
-                ->where(function ($query) use ($assignedBlockId) {
-                    $query->where('status', 'active');
-                    if ($assignedBlockId) {
-                        $query->orWhere('id', $assignedBlockId);
-                    }
+                ->when(!count($programIds) && $assignedBlockId, function ($query) use ($assignedBlockId) {
+                    $query->where('id', $assignedBlockId);
                 })
                 ->orderByDesc('admission_year')
                 ->orderBy('code')
@@ -762,7 +770,7 @@ class AccountController extends Controller
     private function canUpdateAccount($user, $targetUser, $type): bool
     {
         if ($user->role === 'it_admin') {
-            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor']);
+            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student']);
         }
 
         if ($user->role === 'registrar' && $type === 'student') {
@@ -778,7 +786,7 @@ class AccountController extends Controller
     private function canResetPassword($user, $targetUser, $type): bool
     {
         if ($user->role === 'it_admin') {
-            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor']);
+            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student']);
         }
 
         return false;
