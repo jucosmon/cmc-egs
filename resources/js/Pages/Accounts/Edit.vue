@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 
 const page = usePage();
 const currentUserRole = computed(() => page.props.auth?.user?.role ?? null);
@@ -24,8 +24,8 @@ const props = defineProps({
         default: () => ({}),
     },
     blocks: {
-        type: Object,
-        default: () => ({}),
+        type: Array,
+        default: () => [],
     },
     student_statuses: {
         type: Array,
@@ -51,6 +51,7 @@ const props = defineProps({
 
 const form = useForm({
     email: props.account.email || "",
+    personal_email: props.account.personal_email || "",
     first_name: props.account.first_name || "",
     middle_name: props.account.middle_name || "",
     last_name: props.account.last_name || "",
@@ -141,6 +142,29 @@ const showDepartments = computed(
     () =>
         ["student", "instructor", "program_head"].includes(props.userType) &&
         ["it_admin", "dean"].includes(currentUserRole.value),
+);
+
+const programBlocks = computed(() => {
+    if (!form.program_id) return [];
+    return (props.blocks || []).filter(
+        (block) => String(block.program_id) === String(form.program_id),
+    );
+});
+
+watch(
+    () => form.program_id,
+    () => {
+        if (!programBlocks.value.length) {
+            form.block_id = "";
+        } else if (
+            form.block_id &&
+            !programBlocks.value.find(
+                (block) => String(block.id) === String(form.block_id),
+            )
+        ) {
+            form.block_id = "";
+        }
+    },
 );
 
 const submit = () => {
@@ -270,8 +294,9 @@ const getRoleLabel = (role) => {
                             <div>
                                 <label
                                     class="block text-sm font-medium text-gray-700"
-                                    >Year Level</label
                                 >
+                                    Year Level
+                                </label>
                                 <select
                                     v-model="form.year_level"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -292,8 +317,9 @@ const getRoleLabel = (role) => {
                             <div>
                                 <label
                                     class="block text-sm font-medium text-gray-700"
-                                    >Status</label
                                 >
+                                    Status
+                                </label>
                                 <select
                                     v-model="form.status"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
@@ -309,26 +335,25 @@ const getRoleLabel = (role) => {
                                 </select>
                             </div>
 
-                            <div
-                                v-if="
-                                    Object.keys(props.blocks || {}).length > 0
-                                "
-                            >
+                            <div v-if="programBlocks.length">
                                 <label
                                     class="block text-sm font-medium text-gray-700"
-                                    >Block</label
                                 >
+                                    Block
+                                </label>
                                 <select
                                     v-model="form.block_id"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 >
                                     <option value="">Select block...</option>
                                     <option
-                                        v-for="(code, id) in props.blocks"
-                                        :key="id"
-                                        :value="id"
+                                        v-for="block in programBlocks"
+                                        :key="block.id"
+                                        :value="block.id"
                                     >
-                                        {{ code }}
+                                        {{ block.code }} ({{
+                                            block.admission_year
+                                        }})
                                     </option>
                                 </select>
                             </div>
@@ -349,6 +374,22 @@ const getRoleLabel = (role) => {
                                 disabled
                                 readonly
                                 class="mt-1 block w-full rounded-md border-gray-200 bg-gray-50 px-3 py-2 text-gray-600"
+                            />
+                        </div>
+
+                        <!-- Personal Email -->
+                        <div>
+                            <label
+                                for="personal_email"
+                                class="block text-sm font-medium text-gray-700"
+                            >
+                                Personal Email
+                            </label>
+                            <input
+                                id="personal_email"
+                                v-model="form.personal_email"
+                                type="email"
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>
 

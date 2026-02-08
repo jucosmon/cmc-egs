@@ -1,7 +1,10 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link } from "@inertiajs/vue3";
+import { Head, Link, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
 
 const props = defineProps({
     accounts: {
@@ -81,6 +84,32 @@ const formatDate = (date) => {
                     <p class="mt-2 text-gray-600">
                         View and manage user accounts
                     </p>
+                </div>
+
+                <!-- Flash Messages -->
+                <div
+                    v-if="flash.success"
+                    class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                >
+                    {{ flash.success }}
+                </div>
+                <div
+                    v-if="flash.info"
+                    class="mb-4 rounded-md bg-blue-50 p-4 text-sm text-blue-800"
+                >
+                    {{ flash.info }}
+                </div>
+                <div
+                    v-if="flash.warning"
+                    class="mb-4 rounded-md bg-yellow-50 p-4 text-sm text-yellow-800"
+                >
+                    {{ flash.warning }}
+                </div>
+                <div
+                    v-if="flash.error"
+                    class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                >
+                    {{ flash.error }}
                 </div>
 
                 <!-- Error Messages -->

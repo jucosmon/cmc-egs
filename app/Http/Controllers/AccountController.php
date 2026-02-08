@@ -8,10 +8,13 @@ use App\Models\Program;
 use App\Models\Student;
 use App\Models\Instructor;
 use App\Models\Block;
+use App\Mail\AccountCreatedMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -76,12 +79,29 @@ class AccountController extends Controller
                 $departments = collect([$department->id => $department->name]);
                 $programs = $department->programs()->pluck('name', 'id');
             }
+        } elseif ($user->role === 'registrar') {
+            $programs = Program::query()->orderBy('name')->pluck('name', 'id');
+        }
+
+        if ($type === 'student') {
+            $programIds = $programs ? $programs->keys()->all() : [];
+            $blocks = Block::query()
+                ->when(count($programIds), function ($query) use ($programIds) {
+                    $query->whereIn('program_id', $programIds);
+                })
+                ->where('status', 'active')
+                ->orderByDesc('admission_year')
+                ->orderBy('code')
+                ->get(['id', 'code', 'admission_year', 'program_id', 'status']);
         }
 
         return Inertia::render('Accounts/Create', [
             'userType' => $type,
             'departments' => $departments,
             'programs' => $programs,
+            'blocks' => $blocks,
+            'student_statuses' => ['regular', 'irregular', 'graduated'],
+            'year_levels' => [1, 2, 3, 4, 5],
         ]);
     }
 
@@ -101,6 +121,7 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'email' => 'nullable|email|unique:users',
+            'personal_email' => 'required|email|unique:users,personal_email',
             'first_name' => 'required|string',
             'middle_name' => 'nullable|string',
             'last_name' => 'required|string',
@@ -110,10 +131,10 @@ class AccountController extends Controller
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
             'department_id' => 'nullable|exists:departments,id',
-            'program_id' => 'nullable|exists:programs,id',
-            'year_level' => 'nullable|integer|min:1|max:6',
-            'status' => 'nullable|in:regular,irregular',
-            'block_id' => 'nullable|exists:blocks,id',
+            'program_id' => 'required_if:type,student|exists:programs,id',
+            'year_level' => 'required_if:type,student|integer|min:1|max:6',
+            'status' => 'required_if:type,student|in:regular,irregular,graduated',
+            'block_id' => 'required_if:type,student|exists:blocks,id',
         ]);
 
         // Generate email if not provided
@@ -158,6 +179,7 @@ class AccountController extends Controller
         // Create user
         $newUser = User::create([
             'email' => $validated['email'],
+            'personal_email' => $validated['personal_email'],
             'first_name' => $validated['first_name'],
             'middle_name' => $validated['middle_name'] ?? '',
             'last_name' => $validated['last_name'],
@@ -173,6 +195,22 @@ class AccountController extends Controller
 
         // Create related records if needed
         if ($type === 'student' && isset($validated['program_id'])) {
+            $latestAdmissionYear = Block::where('program_id', $validated['program_id'])
+                ->where('status', 'active')
+                ->max('admission_year');
+            if ($validated['block_id']) {
+                $block = Block::find($validated['block_id']);
+                if (!$block || (int) $block->program_id !== (int) $validated['program_id']) {
+                    return back()->withErrors([
+                        'block_id' => 'Selected block does not belong to the selected program.'
+                    ]);
+                }
+                if ($latestAdmissionYear && (int) $block->admission_year !== (int) $latestAdmissionYear) {
+                    return back()->withErrors([
+                        'block_id' => 'Please select a block from the latest admission year.'
+                    ]);
+                }
+            }
             Student::create([
                 'user_id' => $newUser->id,
                 'program_id' => $validated['program_id'],
@@ -190,11 +228,70 @@ class AccountController extends Controller
         }
 
         // Send email with default password
-        // TODO: Implement email sending
-        // Mail::send(new AccountCreatedMail($newUser, $defaultPassword));
+        $emailSent = false;
+        try {
+            $mailtrapToken = config('services.mailtrap.token');
+            if ($mailtrapToken) {
+                $fromAddress = config('mail.from.address');
+                $fromName = config('mail.from.name') ?: 'CMC EGS';
+                $html = view('emails.account-created', [
+                    'user' => $newUser,
+                    'temporaryPassword' => $defaultPassword,
+                ])->render();
 
-        return redirect()->route('accounts.index', ['type' => $type])
+                /** @var \Illuminate\Http\Client\Response $response */
+                $response = Http::withToken($mailtrapToken)
+                    ->post(config('services.mailtrap.endpoint'), [
+                        'from' => [
+                            'email' => $fromAddress,
+                            'name' => $fromName,
+                        ],
+                        'to' => [
+                            ['email' => $validated['personal_email']],
+                        ],
+                        'subject' => 'Welcome to Carmen Municipal College',
+                        'text' => 'Your account has been created. Please log in using your official email and the temporary password provided.',
+                        'html' => $html,
+                    ]);
+
+                $emailSent = $response->successful();
+
+                if (!$emailSent) {
+                    Log::warning('Mailtrap API send failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'user_id' => $newUser->id,
+                    ]);
+                }
+            } else {
+                Mail::to($validated['personal_email'])->send(
+                    new AccountCreatedMail($newUser, $defaultPassword)
+                );
+                $emailSent = true;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Account email failed to send', [
+                'user_id' => $newUser->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $redirect = redirect()->route('accounts.index', ['type' => $type])
             ->with('success', 'You have successfully created an account!');
+
+        if ($emailSent) {
+            $redirect->with(
+                'info',
+                'Welcome email sent to ' . $validated['personal_email'] . '.'
+            );
+        } else {
+            $redirect->with(
+                'warning',
+                'Account created, but the welcome email could not be sent. Please verify SMTP settings.'
+            );
+        }
+
+        return $redirect;
     }
 
     /**
@@ -208,6 +305,7 @@ class AccountController extends Controller
         // Ensure related nested relations are loaded for display
         $account->load([
             'student.program.department',
+            'student.block',
             'instructor.department',
             'programAsHead.department',
             'departmentAsProgramHead',
@@ -263,6 +361,7 @@ class AccountController extends Controller
 
         $departments = [];
         $programs = [];
+        $blocks = [];
 
         if ($currentUser->role === 'it_admin') {
             $departments = Department::all()->pluck('name', 'id');
@@ -273,9 +372,9 @@ class AccountController extends Controller
                 $departments = collect([$department->id => $department->name]);
                 $programs = $department->programs()->pluck('name', 'id');
             }
+        } elseif ($currentUser->role === 'registrar') {
+            $programs = Program::query()->orderBy('name')->pluck('name', 'id');
         }
-
-        $blocks = [];
 
         // Ensure program_id options are available when editing a program head
         if ($type === 'program_head' && $currentUser->role === 'it_admin') {
@@ -286,21 +385,21 @@ class AccountController extends Controller
 
         // Provide blocks and statuses when editing students (useful for registrars)
         if ($type === 'student') {
-            // If we have a program selected (either from department/programs or account), filter blocks by program
-            $programId = null;
-            if ($programs && count($programs)) {
-                $keys = $programs->keys();
-                $programId = $keys->first() ?? null;
-            }
-            if ($account->student && $account->student->program_id) {
-                $programId = $account->student->program_id;
-            }
-
-            if ($programId) {
-                $blocks = Block::where('program_id', $programId)->pluck('code', 'id');
-            } else {
-                $blocks = Block::all()->pluck('code', 'id');
-            }
+            $programIds = $programs ? $programs->keys()->all() : [];
+            $assignedBlockId = $account->student?->block_id;
+            $blocks = Block::query()
+                ->when(count($programIds), function ($query) use ($programIds) {
+                    $query->whereIn('program_id', $programIds);
+                })
+                ->where(function ($query) use ($assignedBlockId) {
+                    $query->where('status', 'active');
+                    if ($assignedBlockId) {
+                        $query->orWhere('id', $assignedBlockId);
+                    }
+                })
+                ->orderByDesc('admission_year')
+                ->orderBy('code')
+                ->get(['id', 'code', 'admission_year', 'program_id', 'status']);
         }
 
         // Expose the account's program/dept explicitly to the Inertia view to avoid
@@ -337,6 +436,7 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'email' => 'required|email|unique:users,email,' . $account->id,
+            'personal_email' => 'nullable|email|unique:users,personal_email,' . $account->id,
             'first_name' => 'required|string',
             'middle_name' => 'nullable|string',
             'last_name' => 'required|string',
@@ -346,17 +446,28 @@ class AccountController extends Controller
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
             'department_id' => 'nullable|exists:departments,id',
-            'program_id' => 'nullable|exists:programs,id',
+            'program_id' => 'required_if:type,student|exists:programs,id',
+            'year_level' => 'required_if:type,student|integer|min:1|max:6',
+            'status' => 'required_if:type,student|in:regular,irregular,graduated',
+            'block_id' => 'required_if:type,student|exists:blocks,id',
         ]);
 
         // Update base user fields
         $account->update(array_filter($validated, function ($k) {
-            return in_array($k, ['email', 'first_name', 'middle_name', 'last_name', 'official_id', 'phone', 'address', 'date_of_birth', 'sex']);
+            return in_array($k, ['email', 'personal_email', 'first_name', 'middle_name', 'last_name', 'official_id', 'phone', 'address', 'date_of_birth', 'sex']);
         }, ARRAY_FILTER_USE_KEY));
 
         // Update related records depending on role
         if ($account->role === 'student') {
             $student = $account->student;
+            if (isset($validated['block_id']) && $validated['block_id']) {
+                $block = Block::find($validated['block_id']);
+                if (!$block || (int) $block->program_id !== (int) $validated['program_id']) {
+                    return back()->withErrors([
+                        'block_id' => 'Selected block does not belong to the selected program.'
+                    ]);
+                }
+            }
             if ($student) {
                 $student->update([
                     'program_id' => $validated['program_id'] ?? $student->program_id,

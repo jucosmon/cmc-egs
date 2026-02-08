@@ -1,10 +1,11 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 
 const page = usePage();
 const currentUserRole = computed(() => page.props.auth?.user?.role ?? null);
+const flash = computed(() => page.props.flash || {});
 
 const props = defineProps({
     userType: {
@@ -19,6 +20,18 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    blocks: {
+        type: Array,
+        default: () => [],
+    },
+    student_statuses: {
+        type: Array,
+        default: () => [],
+    },
+    year_levels: {
+        type: Array,
+        default: () => [],
+    },
     errors: {
         type: Object,
         default: () => ({}),
@@ -27,6 +40,7 @@ const props = defineProps({
 
 const form = useForm({
     email: "",
+    personal_email: "",
     first_name: "",
     middle_name: "",
     last_name: "",
@@ -37,17 +51,51 @@ const form = useForm({
     sex: "",
     department_id: "",
     program_id: "",
+    year_level: "",
+    status: "",
+    block_id: "",
     type: props.userType,
 });
 
 // Show programs only for student creation
 const showPrograms = computed(() => props.userType === "student");
+const showStudentFields = computed(() => props.userType === "student");
 
 // Show departments only for IT Admin or when relevant
 const showDepartments = computed(
     () =>
         ["it_admin", "dean"].includes(currentUserRole.value) &&
         ["student", "instructor", "program_head"].includes(props.userType),
+);
+
+const programBlocks = computed(() => {
+    if (!form.program_id) return [];
+    return props.blocks.filter(
+        (block) => String(block.program_id) === String(form.program_id),
+    );
+});
+
+const latestAdmissionYear = computed(() => {
+    if (!programBlocks.value.length) return null;
+    return Math.max(...programBlocks.value.map((b) => b.admission_year || 0));
+});
+
+const availableBlocks = computed(() => {
+    if (!latestAdmissionYear.value) return [];
+    return programBlocks.value.filter(
+        (block) => block.admission_year === latestAdmissionYear.value,
+    );
+});
+
+watch(
+    () => form.program_id,
+    () => {
+        if (availableBlocks.value.length) {
+            form.block_id = String(availableBlocks.value[0].id);
+        } else {
+            form.block_id = "";
+        }
+    },
 );
 
 const submit = () => {
@@ -97,6 +145,32 @@ const getRoleLabel = (role) => {
                         </svg>
                         Back to {{ getRoleLabel(userType) }}s
                     </Link>
+                </div>
+
+                <!-- Alerts -->
+                <div
+                    v-if="flash.success"
+                    class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                >
+                    {{ flash.success }}
+                </div>
+                <div
+                    v-if="flash.info"
+                    class="mb-4 rounded-md bg-blue-50 p-4 text-sm text-blue-800"
+                >
+                    {{ flash.info }}
+                </div>
+                <div
+                    v-if="flash.warning"
+                    class="mb-4 rounded-md bg-yellow-50 p-4 text-sm text-yellow-800"
+                >
+                    {{ flash.warning }}
+                </div>
+                <div
+                    v-if="flash.error"
+                    class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                >
+                    {{ flash.error }}
                 </div>
 
                 <!-- Form Card -->
@@ -163,10 +237,27 @@ const getRoleLabel = (role) => {
                         <!-- Email -->
                         <div class="rounded-md bg-blue-50 p-4">
                             <p class="text-sm text-blue-700">
-                                <strong>Note:</strong> Email will be
+                                <strong>Note:</strong> Official email will be
                                 automatically generated based on the first and
                                 last name (e.g., john.doe@cmc.edu.ph)
                             </p>
+                        </div>
+
+                        <!-- Personal Email -->
+                        <div>
+                            <label
+                                for="personal_email"
+                                class="block text-sm font-medium text-gray-700"
+                            >
+                                Personal Email *
+                            </label>
+                            <input
+                                id="personal_email"
+                                v-model="form.personal_email"
+                                type="email"
+                                required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            />
                         </div>
 
                         <!-- First Name -->
@@ -350,6 +441,86 @@ const getRoleLabel = (role) => {
                                     {{ name }}
                                 </option>
                             </select>
+                        </div>
+
+                        <!-- Student Fields -->
+                        <div v-if="showStudentFields" class="space-y-4">
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                >
+                                    Year Level *
+                                </label>
+                                <select
+                                    v-model="form.year_level"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">
+                                        Select year level...
+                                    </option>
+                                    <option
+                                        v-for="yl in props.year_levels"
+                                        :key="yl"
+                                        :value="yl"
+                                    >
+                                        {{ yl }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                >
+                                    Status *
+                                </label>
+                                <select
+                                    v-model="form.status"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">Select status...</option>
+                                    <option
+                                        v-for="st in props.student_statuses"
+                                        :key="st"
+                                        :value="st"
+                                    >
+                                        {{ st }}
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700"
+                                >
+                                    Block *
+                                </label>
+                                <select
+                                    v-model="form.block_id"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                >
+                                    <option value="">Select block...</option>
+                                    <option
+                                        v-for="block in availableBlocks"
+                                        :key="block.id"
+                                        :value="block.id"
+                                    >
+                                        {{ block.code }} ({{
+                                            block.admission_year
+                                        }})
+                                    </option>
+                                </select>
+                                <p
+                                    v-if="
+                                        form.program_id &&
+                                        !availableBlocks.length
+                                    "
+                                    class="mt-1 text-sm text-gray-500"
+                                >
+                                    No active blocks found for the latest
+                                    admission year.
+                                </p>
+                            </div>
                         </div>
 
                         <!-- Form Actions -->

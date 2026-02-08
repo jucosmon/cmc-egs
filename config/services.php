@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'mailtrap' => [
+        'token' => env('MAILTRAP_TOKEN'),
+        'endpoint' => env('MAILTRAP_ENDPOINT', 'https://send.api.mailtrap.io/api/send'),
+    ],
+
 ];

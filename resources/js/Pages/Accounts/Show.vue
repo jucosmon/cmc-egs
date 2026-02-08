@@ -1,7 +1,10 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, useForm } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
+import { computed, ref } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
 
 const props = defineProps({
     account: {
@@ -106,6 +109,30 @@ const getRoleLabel = (role) => {
 
                 <!-- Page Header -->
                 <div class="mb-8 rounded-lg bg-white px-6 py-8 shadow">
+                    <div
+                        v-if="flash.success"
+                        class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                    >
+                        {{ flash.success }}
+                    </div>
+                    <div
+                        v-if="flash.info"
+                        class="mb-4 rounded-md bg-blue-50 p-4 text-sm text-blue-800"
+                    >
+                        {{ flash.info }}
+                    </div>
+                    <div
+                        v-if="flash.warning"
+                        class="mb-4 rounded-md bg-yellow-50 p-4 text-sm text-yellow-800"
+                    >
+                        {{ flash.warning }}
+                    </div>
+                    <div
+                        v-if="flash.error"
+                        class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                    >
+                        {{ flash.error }}
+                    </div>
                     <div class="flex items-center">
                         <div class="h-20 w-20 flex-shrink-0">
                             <div
@@ -167,6 +194,14 @@ const getRoleLabel = (role) => {
                                 </dt>
                                 <dd class="mt-1 text-sm text-gray-900">
                                     {{ account.email }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Personal Email
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ account.personal_email || "N/A" }}
                                 </dd>
                             </div>
                             <div>
@@ -392,7 +427,11 @@ const getRoleLabel = (role) => {
                                     Block
                                 </dt>
                                 <dd class="mt-1 text-sm text-gray-900">
-                                    {{ student.block?.name || "N/A" }}
+                                    {{
+                                        student.block
+                                            ? `${student.block.code} (${student.block.admission_year})`
+                                            : "N/A"
+                                    }}
                                 </dd>
                             </div>
                         </dl>
