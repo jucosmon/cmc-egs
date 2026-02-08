@@ -10,6 +10,7 @@ use App\Models\ScheduledSubject;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -631,6 +632,43 @@ class EnrollmentController extends Controller
             'status' => 'found',
             'message' => $availableSchedules->isEmpty() ? 'No matching subjects found.' : null,
         ]);
+    }
+
+    public function downloadSchedule(Request $request, Enrollment $enrollment)
+    {
+        $user = Auth::user();
+
+        if ($user->role === 'student' && $enrollment->student->user_id !== $user->id) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $enrollment->load([
+            'student.user',
+            'student.program',
+            'academicTerm',
+            'block',
+            'enrolledSubjects' => function ($q) {
+                $q->with([
+                    'scheduledSubject.curriculumSubject.subject',
+                    'scheduledSubject.instructor.user',
+                ])->where('status', '!=', 'dropped');
+            },
+        ]);
+
+        $totalUnits = $enrollment->enrolledSubjects
+            ->sum(function ($es) {
+                return $es->scheduledSubject->curriculumSubject->subject->units ?? 0;
+            });
+
+        $studentId = $enrollment->student->user->official_id ?? $enrollment->student->id;
+        $term = $enrollment->academicTerm->academic_year ?? 'term';
+
+        $pdf = Pdf::loadView('reports.schedule', [
+            'enrollment' => $enrollment,
+            'totalUnits' => $totalUnits,
+        ]);
+
+        return $pdf->download("Schedule_{$studentId}_{$term}.pdf");
     }
 
     /**

@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, router } from "@inertiajs/vue3";
+import { Head } from "@inertiajs/vue3";
 import { computed } from "vue";
 
 const props = defineProps({
@@ -18,12 +18,11 @@ const totalUnits = computed(() => {
     }, 0);
 });
 
-const printSchedule = () => {
-    window.print();
-};
-
 const downloadSchedule = () => {
-    router.get(route("enrollments.download-schedule", props.enrollment.id));
+    window.location.href = route(
+        "enrollments.download-schedule",
+        props.enrollment.id,
+    );
 };
 </script>
 
@@ -150,25 +149,6 @@ const downloadSchedule = () => {
                                     Subjects)
                                 </h3>
                                 <div class="flex gap-2">
-                                    <button
-                                        @click="printSchedule"
-                                        class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center gap-2"
-                                    >
-                                        <svg
-                                            class="w-5 h-5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                                            />
-                                        </svg>
-                                        Print
-                                    </button>
                                     <button
                                         @click="downloadSchedule"
                                         class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2"
