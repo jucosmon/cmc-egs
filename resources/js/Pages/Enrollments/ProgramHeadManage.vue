@@ -271,6 +271,12 @@ const getRequiredSubjects = (block) => {
     // Get semester from active term
     const currentSemester = props.activeTerm?.semester || "first";
 
+    const scheduledIds = new Set(
+        getActiveTermSchedules(block).map(
+            (s) => s.curriculum_subject_id || s.curriculum_subject?.id,
+        ),
+    );
+
     console.log(`[BlockManage] Filtering subjects for block ${block.code}:`, {
         admissionYear: block.admission_year,
         academicYearStart: getAcademicYearStartYear(),
@@ -282,6 +288,9 @@ const getRequiredSubjects = (block) => {
 
     // Filter curriculum subjects by year level and semester
     const filtered = availableSubjects.value.filter((s) => {
+        if (scheduledIds.has(s.id)) {
+            return false;
+        }
         const matches =
             s.year_level === yearLevel && s.semester === currentSemester;
         if (!matches) {
@@ -1053,13 +1062,16 @@ const getAutoBlockCode = () => {
                             <div>
                                 <label
                                     class="block text-sm font-medium text-gray-700 mb-1"
-                                    >Instructor (Optional)</label
+                                    >Instructor *</label
                                 >
                                 <select
                                     v-model="scheduleForm.instructor_id"
+                                    required
                                     class="w-full rounded-md border-gray-300"
                                 >
-                                    <option :value="null">Not assigned</option>
+                                    <option value="">
+                                        Select instructor...
+                                    </option>
                                     <option
                                         v-for="instructor in instructors"
                                         :key="instructor.id"
@@ -1081,6 +1093,10 @@ const getAutoBlockCode = () => {
                                 >
                                     {{ error }}
                                 </p>
+                            </div>
+
+                            <div v-if="flashError" class="text-red-600 text-sm">
+                                {{ flashError }}
                             </div>
 
                             <div class="flex gap-3 justify-end pt-4">
@@ -1187,13 +1203,16 @@ const getAutoBlockCode = () => {
                             <div>
                                 <label
                                     class="block text-sm font-medium text-gray-700 mb-1"
-                                    >Instructor</label
+                                    >Instructor *</label
                                 >
                                 <select
                                     v-model="scheduleForm.instructor_id"
+                                    required
                                     class="w-full rounded-md border-gray-300"
                                 >
-                                    <option :value="null">Not assigned</option>
+                                    <option value="">
+                                        Select instructor...
+                                    </option>
                                     <option
                                         v-for="instructor in instructors"
                                         :key="instructor.id"
@@ -1220,6 +1239,17 @@ const getAutoBlockCode = () => {
                                 >
                                     Update
                                 </button>
+                            </div>
+                            <div
+                                v-if="scheduleForm.errors"
+                                class="text-red-600 text-sm pt-2"
+                            >
+                                <p
+                                    v-for="(error, key) in scheduleForm.errors"
+                                    :key="key"
+                                >
+                                    {{ error }}
+                                </p>
                             </div>
                         </form>
                     </div>
