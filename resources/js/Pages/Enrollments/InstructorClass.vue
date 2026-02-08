@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, router } from "@inertiajs/vue3";
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps({
     classesBySubject: Array,
@@ -38,6 +38,30 @@ const scheduleLinkParams = (schedule) => ({
 
 const isSelectedSchedule = (scheduleId) =>
     props.selectedSchedule?.id === scheduleId;
+
+const showStudentsModal = ref(!!props.selectedSchedule?.id);
+
+watch(
+    () => props.selectedSchedule?.id,
+    (newValue) => {
+        showStudentsModal.value = !!newValue;
+    },
+    { immediate: true },
+);
+
+const closeStudentsModal = () => {
+    showStudentsModal.value = false;
+    router.get(
+        route("enrollments.instructor-classes"),
+        {
+            academic_term_id: selectedTermId.value || undefined,
+        },
+        {
+            preserveState: true,
+            replace: true,
+        },
+    );
+};
 </script>
 
 <template>
@@ -197,7 +221,7 @@ const isSelectedSchedule = (scheduleId) =>
                                                         ),
                                                     )
                                                 "
-                                                class="font-semibold text-indigo-600 hover:underline"
+                                                class="inline-flex items-center rounded-md border border-indigo-200 px-2.5 py-1 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"
                                             >
                                                 {{ schedule.student_count }}
                                             </Link>
@@ -208,140 +232,145 @@ const isSelectedSchedule = (scheduleId) =>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div class="bg-white shadow-sm sm:rounded-lg">
-                    <div class="p-6">
+        <div
+            v-if="showStudentsModal && selectedSchedule"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 px-4 py-8"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div class="w-full max-w-5xl rounded-lg bg-white shadow-xl">
+                <div
+                    class="flex items-start justify-between border-b px-6 py-4"
+                >
+                    <div>
                         <h3 class="text-lg font-semibold text-gray-800">
                             Enrolled Students
                         </h3>
-
-                        <p v-if="!selectedSchedule" class="mt-2 text-gray-600">
-                            Select a class schedule to view enrolled students.
+                        <p class="mt-1 text-sm text-gray-600">
+                            {{ selectedSchedule.subject_code }} -
+                            {{ selectedSchedule.subject_title }}
                         </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-md border border-gray-200 px-3 py-1 text-sm text-gray-600 hover:bg-gray-50"
+                        @click="closeStudentsModal"
+                    >
+                        Close
+                    </button>
+                </div>
 
-                        <div v-else class="mt-4 space-y-4">
-                            <div
-                                class="flex flex-wrap gap-4 text-sm text-gray-600"
-                            >
-                                <span>
-                                    <span class="font-medium">Class:</span>
-                                    {{ selectedSchedule.subject_code }} -
-                                    {{ selectedSchedule.subject_title }}
-                                </span>
-                                <span>
-                                    <span class="font-medium">Block:</span>
-                                    {{ selectedSchedule.block_code }}
-                                </span>
-                                <span>
-                                    <span class="font-medium">Program:</span>
-                                    {{ selectedSchedule.program_name }}
-                                </span>
-                                <span>
-                                    <span class="font-medium">Schedule:</span>
-                                    {{ selectedSchedule.day }}
-                                    {{ selectedSchedule.time }}
-                                </span>
-                                <span>
-                                    <span class="font-medium">Room:</span>
-                                    {{ selectedSchedule.room }}
-                                </span>
-                            </div>
+                <div class="space-y-4 px-6 py-4">
+                    <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                        <span>
+                            <span class="font-medium">Class:</span>
+                            {{ selectedSchedule.subject_code }} -
+                            {{ selectedSchedule.subject_title }}
+                        </span>
+                        <span>
+                            <span class="font-medium">Block:</span>
+                            {{ selectedSchedule.block_code }}
+                        </span>
+                        <span>
+                            <span class="font-medium">Program:</span>
+                            {{ selectedSchedule.program_name }}
+                        </span>
+                        <span>
+                            <span class="font-medium">Schedule:</span>
+                            {{ selectedSchedule.day }}
+                            {{ selectedSchedule.time }}
+                        </span>
+                        <span>
+                            <span class="font-medium">Room:</span>
+                            {{ selectedSchedule.room }}
+                        </span>
+                    </div>
 
-                            <div
-                                v-if="!students || students.length === 0"
-                                class="text-gray-600"
-                            >
-                                No students found.
-                            </div>
+                    <div
+                        v-if="!students || students.length === 0"
+                        class="text-gray-600"
+                    >
+                        No students found.
+                    </div>
 
-                            <div v-else class="overflow-x-auto">
-                                <table
-                                    class="min-w-full divide-y divide-gray-200"
-                                >
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th
-                                                class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
-                                            >
-                                                Student ID
-                                            </th>
-                                            <th
-                                                class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
-                                            >
-                                                Name
-                                            </th>
-                                            <th
-                                                class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
-                                            >
-                                                Program
-                                            </th>
-                                            <th
-                                                class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
-                                            >
-                                                Year Level
-                                            </th>
-                                            <th
-                                                class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
-                                            >
-                                                Block
-                                            </th>
-                                            <th
-                                                class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
-                                            >
-                                                Status
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody
-                                        class="divide-y divide-gray-200 bg-white"
+                    <div v-else class="max-h-[60vh] overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
                                     >
-                                        <tr
-                                            v-for="student in students"
-                                            :key="student.id"
-                                            class="hover:bg-gray-50"
-                                        >
-                                            <td
-                                                class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900"
-                                            >
-                                                {{ student.official_id }}
-                                            </td>
-                                            <td
-                                                class="whitespace-nowrap px-6 py-4 text-sm text-gray-700"
-                                            >
-                                                {{ student.name }}
-                                            </td>
-                                            <td
-                                                class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
-                                            >
-                                                {{
-                                                    student.program_code ||
-                                                    "N/A"
-                                                }}
-                                            </td>
-                                            <td
-                                                class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
-                                            >
-                                                {{
-                                                    student.year_level || "N/A"
-                                                }}
-                                            </td>
-                                            <td
-                                                class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
-                                            >
-                                                {{
-                                                    student.block_code || "N/A"
-                                                }}
-                                            </td>
-                                            <td
-                                                class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
-                                            >
-                                                {{ student.status }}
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                                        Student ID
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                    >
+                                        Name
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                    >
+                                        Program
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                    >
+                                        Year Level
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                    >
+                                        Block
+                                    </th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                    >
+                                        Status
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                <tr
+                                    v-for="student in students"
+                                    :key="student.id"
+                                    class="hover:bg-gray-50"
+                                >
+                                    <td
+                                        class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900"
+                                    >
+                                        {{ student.official_id }}
+                                    </td>
+                                    <td
+                                        class="whitespace-nowrap px-6 py-4 text-sm text-gray-700"
+                                    >
+                                        {{ student.name }}
+                                    </td>
+                                    <td
+                                        class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
+                                    >
+                                        {{ student.program_code || "N/A" }}
+                                    </td>
+                                    <td
+                                        class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
+                                    >
+                                        {{ student.year_level || "N/A" }}
+                                    </td>
+                                    <td
+                                        class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
+                                    >
+                                        {{ student.block_code || "N/A" }}
+                                    </td>
+                                    <td
+                                        class="whitespace-nowrap px-6 py-4 text-sm text-gray-600"
+                                    >
+                                        {{ student.status }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
