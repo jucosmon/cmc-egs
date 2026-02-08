@@ -64,41 +64,12 @@ const summary = computed(() => {
     };
 });
 
-const openTorPreview = () => {
-    if (!props.studentRecord) return;
-    window.open(
-        route("reports.download-tor", props.studentRecord.id),
-        "_blank",
-    );
-};
-
 const downloadTor = () => {
     if (!props.studentRecord) return;
     window.location.href = route(
         "reports.download-tor",
         props.studentRecord.id,
     );
-};
-
-const printTor = () => {
-    if (!props.studentRecord) return;
-    const previewWindow = window.open(
-        route("reports.download-tor", props.studentRecord.id),
-        "_blank",
-    );
-    if (!previewWindow) return;
-
-    previewWindow.onload = () => {
-        previewWindow.focus();
-        previewWindow.print();
-    };
-
-    setTimeout(() => {
-        if (!previewWindow.closed) {
-            previewWindow.focus();
-            previewWindow.print();
-        }
-    }, 1200);
 };
 </script>
 
@@ -262,20 +233,6 @@ const printTor = () => {
                                 Completed Subjects
                             </h4>
                             <div class="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                                    @click="openTorPreview"
-                                >
-                                    Preview TOR
-                                </button>
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center justify-center rounded-md border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-                                    @click="printTor"
-                                >
-                                    Print
-                                </button>
                                 <button
                                     type="button"
                                     class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
