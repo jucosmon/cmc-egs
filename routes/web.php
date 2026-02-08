@@ -27,6 +27,10 @@ Route::get('/', function () {
 // })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/unauthorized', function () {
+        return response('Unauthorized', 403);
+    })->name('unauthorized');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -42,6 +46,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:it_admin,dean,program_head')->group(function () {
         Route::resource('programs', ProgramController::class);
         Route::resource('blocks', BlockController::class);
+        // API endpoint for getting available subjects for a block
+        Route::get('api/blocks/{block}/available-subjects', [BlockController::class, 'getAvailableSubjects'])
+            ->name('api.blocks.available-subjects');
         Route::resource('curriculums', CurriculumController::class);
         Route::put('curriculums/{curriculum}/activate', [CurriculumController::class, 'activate'])
             ->name('curriculums.activate');
@@ -91,11 +98,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/enrollments', [BlockController::class, 'index'])->name('enrollments.index');
         Route::get('/blocks/{block}/students', [BlockController::class, 'students'])->name('blocks.students');
         Route::get('/blocks/{block}/term-history', [BlockController::class, 'termHistory'])->name('blocks.term-history');
-
-        // Scheduled subjects for program head
-        Route::post('/scheduled-subjects', [ScheduledSubjectController::class, 'store'])->name('scheduled-subjects.store');
-        Route::put('/scheduled-subjects/{scheduledSubject}', [ScheduledSubjectController::class, 'update'])->name('scheduled-subjects.update');
-        Route::delete('/scheduled-subjects/{scheduledSubject}', [ScheduledSubjectController::class, 'destroy'])->name('scheduled-subjects.destroy');
     });
 
     // General enrollment routes
@@ -108,8 +110,8 @@ Route::middleware('auth')->group(function () {
             ->name('enrollments.available-subjects');
     });
 
-    // Classes (Instructor)
-    Route::middleware('role:instructor')->group(function () {
+    // Classes (Instructor, Program Head)
+    Route::middleware('role:instructor,program_head')->group(function () {
         Route::resource('classes', ClassController::class)->only(['index', 'show']);
         Route::get('classes/{class}/attendance', [ClassController::class, 'attendance'])
             ->name('classes.attendance');
