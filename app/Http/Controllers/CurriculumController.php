@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AcademicTerm;
 use App\Models\Curriculum;
 use App\Models\CurriculumSubject;
+use App\Models\EnrolledSubject;
 use App\Models\Program;
 use App\Models\Subject;
 use Illuminate\Http\Request;
@@ -308,5 +310,101 @@ class CurriculumController extends Controller
             DB::rollBack();
             return back()->with('error', 'Failed to activate curriculum: ' . $e->getMessage());
         }
+    }
+
+    public function studentChecklist()
+    {
+        $user = Auth::user();
+
+        if ($user->role !== 'student') {
+            abort(403, 'Unauthorized access.');
+        }
+
+        $student = $user->student;
+
+        if (!$student) {
+            abort(403, 'Student profile not found.');
+        }
+
+        $student->load(['user', 'program']);
+
+        $curriculum = Curriculum::where('program_id', $student->program_id)
+            ->where('is_active', true)
+            ->with([
+                'program',
+                'curriculumSubjects' => function ($query) {
+                    $query->with('subject')
+                        ->orderBy('year_level')
+                        ->orderBy('semester');
+                },
+            ])
+            ->first();
+
+        $activeTerm = AcademicTerm::active()->first();
+        $subjectStatuses = [];
+
+        if ($curriculum) {
+            $enrolledSubjects = EnrolledSubject::whereHas('enrollment', function ($query) use ($student) {
+                $query->where('student_id', $student->id);
+            })
+                ->with([
+                    'scheduledSubject.curriculumSubject.subject',
+                    'enrollment',
+                ])
+                ->get();
+
+            foreach ($enrolledSubjects as $enrolledSubject) {
+                $curriculumSubject = $enrolledSubject->scheduledSubject?->curriculumSubject;
+
+                if (!$curriculumSubject || $curriculumSubject->curriculum_id !== $curriculum->id) {
+                    continue;
+                }
+
+                $curriculumSubjectId = $curriculumSubject->id;
+
+                if (!isset($subjectStatuses[$curriculumSubjectId])) {
+                    $subjectStatuses[$curriculumSubjectId] = [
+                        'status' => 'not_taken',
+                        'final_grade' => null,
+                    ];
+                }
+
+                $attemptPassed = $enrolledSubject->final_grade !== null && $enrolledSubject->final_grade >= 75;
+                $attemptFailed = $enrolledSubject->final_grade !== null && $enrolledSubject->final_grade < 75;
+
+                if ($attemptPassed || ($enrolledSubject->status === 'completed' && $enrolledSubject->final_grade === null)) {
+                    $subjectStatuses[$curriculumSubjectId]['status'] = 'completed';
+                    $subjectStatuses[$curriculumSubjectId]['final_grade'] = $enrolledSubject->final_grade;
+                    continue;
+                }
+
+                $isActiveEnrolled = $activeTerm
+                    && $enrolledSubject->status === 'enrolled'
+                    && $enrolledSubject->enrollment?->academic_term_id === $activeTerm->id;
+
+                if ($isActiveEnrolled && $subjectStatuses[$curriculumSubjectId]['status'] !== 'completed') {
+                    $subjectStatuses[$curriculumSubjectId]['status'] = 'in_progress';
+                }
+
+                if ($attemptFailed && $subjectStatuses[$curriculumSubjectId]['status'] === 'not_taken') {
+                    $subjectStatuses[$curriculumSubjectId]['status'] = 'failed';
+                    $subjectStatuses[$curriculumSubjectId]['final_grade'] = $enrolledSubject->final_grade;
+                }
+            }
+        }
+
+        $groupedSubjects = $curriculum
+            ? $curriculum->curriculumSubjects->groupBy(function ($item) {
+                return $item->year_level . '-' . $item->semester;
+            })
+            : collect();
+
+        return Inertia::render('Curriculums/StudentChecklist', [
+            'student' => $student,
+            'curriculum' => $curriculum,
+            'groupedSubjects' => $groupedSubjects,
+            'activeTerm' => $activeTerm,
+            'subjectStatuses' => $subjectStatuses,
+        ]);
     }
 }

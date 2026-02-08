@@ -52,6 +52,7 @@ const canAccessClass = computed(() => isInstructor.value);
 const canAccessGrades = computed(
     () => isInstructor.value || isRegistrar.value || isStudent.value,
 );
+const canAccessChecklist = computed(() => isStudent.value);
 const canAccessReports = computed(() => isRegistrar.value);
 
 // Account management access controls
@@ -227,6 +228,22 @@ const visibleUserTypes = computed(() => {
                                     :active="safeCurrent('enrollments.*')"
                                 >
                                     Enrollment
+                                </NavLink>
+
+                                <NavLink
+                                    v-if="canAccessChecklist"
+                                    :href="
+                                        safeRoute(
+                                            'curriculums.student-checklist',
+                                        )
+                                    "
+                                    :active="
+                                        safeCurrent(
+                                            'curriculums.student-checklist',
+                                        )
+                                    "
+                                >
+                                    Checklist
                                 </NavLink>
 
                                 <NavLink

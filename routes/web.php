@@ -44,7 +44,8 @@ Route::middleware('auth')->group(function () {
         // API endpoint for getting available subjects for a block
         Route::get('api/blocks/{block}/available-subjects', [BlockController::class, 'getAvailableSubjects'])
             ->name('api.blocks.available-subjects');
-        Route::resource('curriculums', CurriculumController::class);
+        Route::resource('curriculums', CurriculumController::class)
+            ->whereNumber('curriculum');
         Route::put('curriculums/{curriculum}/activate', [CurriculumController::class, 'activate'])
             ->name('curriculums.activate');
         Route::resource('instructors', InstructorController::class);
@@ -169,6 +170,10 @@ Route::middleware('auth')->group(function () {
         Route::get('enrollments/{enrollment}/download-schedule', [EnrollmentController::class, 'downloadSchedule'])
             ->whereNumber('enrollment')
             ->name('enrollments.download-schedule');
+
+        // curriculum checklist
+        Route::get('curriculums/checklist', [CurriculumController::class, 'studentChecklist'])
+            ->name('curriculums.student-checklist');
 
         //grades
         Route::get('my-grades', [GradeController::class, 'index'])
