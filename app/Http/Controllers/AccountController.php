@@ -11,6 +11,7 @@ use App\Models\Block;
 use App\Mail\AccountCreatedMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -119,6 +120,8 @@ class AccountController extends Controller
             abort(403);
         }
 
+        $isStudent = $type === 'student';
+
         $validated = $request->validate([
             'email' => 'nullable|email|unique:users',
             'personal_email' => 'required|email|unique:users,personal_email',
@@ -131,10 +134,10 @@ class AccountController extends Controller
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
             'department_id' => 'nullable|exists:departments,id',
-            'program_id' => 'required_if:type,student|exists:programs,id',
-            'year_level' => 'required_if:type,student|integer|min:1|max:6',
-            'status' => 'required_if:type,student|in:regular,irregular,graduated',
-            'block_id' => 'required_if:type,student|exists:blocks,id',
+            'program_id' => $isStudent ? 'required|exists:programs,id' : 'nullable',
+            'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
+            'status' => $isStudent ? 'required|in:regular,irregular,graduated' : 'nullable',
+            'block_id' => $isStudent ? 'required|exists:blocks,id' : 'nullable',
         ]);
 
         // Generate email if not provided
@@ -173,59 +176,66 @@ class AccountController extends Controller
             }
         }
 
-        // Generate default password
-        $defaultPassword = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
-
-        // Create user
-        $newUser = User::create([
-            'email' => $validated['email'],
-            'personal_email' => $validated['personal_email'],
-            'first_name' => $validated['first_name'],
-            'middle_name' => $validated['middle_name'] ?? '',
-            'last_name' => $validated['last_name'],
-            'official_id' => $validated['official_id'] ?? null,
-            'phone' => $validated['phone'] ?? null,
-            'address' => $validated['address'] ?? null,
-            'date_of_birth' => $validated['date_of_birth'] ?? null,
-            'sex' => $validated['sex'] ?? null,
-            'role' => $type,
-            'password' => Hash::make($defaultPassword),
-            'is_active' => true,
-        ]);
-
-        // Create related records if needed
+        // Validate block before creating any records to avoid partial saves
+        $selectedBlock = null;
         if ($type === 'student' && isset($validated['program_id'])) {
             $latestAdmissionYear = Block::where('program_id', $validated['program_id'])
                 ->where('status', 'active')
                 ->max('admission_year');
             if ($validated['block_id']) {
-                $block = Block::find($validated['block_id']);
-                if (!$block || (int) $block->program_id !== (int) $validated['program_id']) {
+                $selectedBlock = Block::find($validated['block_id']);
+                if (!$selectedBlock || (int) $selectedBlock->program_id !== (int) $validated['program_id']) {
                     return back()->withErrors([
                         'block_id' => 'Selected block does not belong to the selected program.'
                     ]);
                 }
-                if ($latestAdmissionYear && (int) $block->admission_year !== (int) $latestAdmissionYear) {
+                if ($latestAdmissionYear && (int) $selectedBlock->admission_year !== (int) $latestAdmissionYear) {
                     return back()->withErrors([
                         'block_id' => 'Please select a block from the latest admission year.'
                     ]);
                 }
             }
-            Student::create([
-                'user_id' => $newUser->id,
-                'program_id' => $validated['program_id'],
-                'year_level' => $validated['year_level'] ?? null,
-                'status' => $validated['status'] ?? null,
-                'block_id' => $validated['block_id'] ?? null,
-            ]);
         }
 
-        if ($type === 'instructor' && isset($validated['department_id'])) {
-            Instructor::create([
-                'user_id' => $newUser->id,
-                'department_id' => $validated['department_id'],
+        // Generate default password
+        $defaultPassword = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+
+        $newUser = DB::transaction(function () use ($validated, $type, $defaultPassword, $selectedBlock) {
+            $user = User::create([
+                'email' => $validated['email'],
+                'personal_email' => $validated['personal_email'],
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? '',
+                'last_name' => $validated['last_name'],
+                'official_id' => $validated['official_id'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'sex' => $validated['sex'] ?? null,
+                'role' => $type,
+                'password' => Hash::make($defaultPassword),
+                'is_active' => true,
             ]);
-        }
+
+            if ($type === 'student' && isset($validated['program_id'])) {
+                Student::create([
+                    'user_id' => $user->id,
+                    'program_id' => $validated['program_id'],
+                    'year_level' => $validated['year_level'] ?? null,
+                    'status' => $validated['status'] ?? null,
+                    'block_id' => $selectedBlock?->id,
+                ]);
+            }
+
+            if ($type === 'instructor' && isset($validated['department_id'])) {
+                Instructor::create([
+                    'user_id' => $user->id,
+                    'department_id' => $validated['department_id'],
+                ]);
+            }
+
+            return $user;
+        });
 
         // Send email with default password
         $emailSent = false;
@@ -434,6 +444,8 @@ class AccountController extends Controller
             abort(403);
         }
 
+        $isStudent = $type === 'student';
+
         $validated = $request->validate([
             'email' => 'required|email|unique:users,email,' . $account->id,
             'personal_email' => 'nullable|email|unique:users,personal_email,' . $account->id,
@@ -446,10 +458,10 @@ class AccountController extends Controller
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
             'department_id' => 'nullable|exists:departments,id',
-            'program_id' => 'required_if:type,student|exists:programs,id',
-            'year_level' => 'required_if:type,student|integer|min:1|max:6',
-            'status' => 'required_if:type,student|in:regular,irregular,graduated',
-            'block_id' => 'required_if:type,student|exists:blocks,id',
+            'program_id' => $isStudent ? 'required|exists:programs,id' : 'nullable',
+            'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
+            'status' => $isStudent ? 'required|in:regular,irregular,graduated' : 'nullable',
+            'block_id' => $isStudent ? 'required|exists:blocks,id' : 'nullable',
         ]);
 
         // Update base user fields
