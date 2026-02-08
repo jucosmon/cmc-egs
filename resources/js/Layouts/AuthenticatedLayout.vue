@@ -669,9 +669,13 @@ const visibleUserTypes = computed(() => {
             </nav>
 
             <!-- Page Heading -->
-            <header class="bg-white shadow" v-if="$slots.header">
+            <header class="bg-[#f6fbfd]" v-if="$slots.header">
                 <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <slot name="header" />
+                    <div
+                        class="rounded-2xl border border-[#2596be]/15 bg-white/90 px-5 py-3 shadow-sm"
+                    >
+                        <slot name="header" />
+                    </div>
                 </div>
             </header>
 

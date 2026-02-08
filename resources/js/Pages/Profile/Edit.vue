@@ -64,7 +64,9 @@ const getRoleLabel = (role) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800">
+            <h2
+                class="text-lg font-semibold leading-tight text-[#1f7fa3] sm:text-xl"
+            >
                 My Profile
             </h2>
         </template>
