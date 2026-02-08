@@ -112,7 +112,7 @@ class ClassController extends Controller
         if ($totalGraded > 0) {
             $passing = $class->enrolledSubjects()
                 ->whereNotNull('final_grade')
-                ->where('final_grade', '>=', 75)
+                ->where('final_grade', '<=', 3.0)
                 ->count();
             $stats['passing_rate'] = round(($passing / $totalGraded) * 100, 2);
         }

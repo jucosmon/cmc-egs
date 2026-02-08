@@ -369,8 +369,8 @@ class CurriculumController extends Controller
                     ];
                 }
 
-                $attemptPassed = $enrolledSubject->final_grade !== null && $enrolledSubject->final_grade >= 75;
-                $attemptFailed = $enrolledSubject->final_grade !== null && $enrolledSubject->final_grade < 75;
+                $attemptPassed = $enrolledSubject->final_grade !== null && $enrolledSubject->final_grade <= 3.0;
+                $attemptFailed = $enrolledSubject->final_grade !== null && $enrolledSubject->final_grade > 3.0;
 
                 if ($attemptPassed || ($enrolledSubject->status === 'completed' && $enrolledSubject->final_grade === null)) {
                     $subjectStatuses[$curriculumSubjectId]['status'] = 'completed';

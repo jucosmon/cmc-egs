@@ -3,38 +3,51 @@
 namespace Database\Seeders;
 
 use App\Models\Instructor;
+use App\Models\Department;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class InstructorSeeder extends Seeder
 {
     public function run(): void
     {
-        $specializations = [
-            'Software Engineering',
-            'Database Management',
-            'Network Security',
-            'Web Development',
-            'Mobile Application Development',
-            'Artificial Intelligence',
-            'Data Science',
-            'Computer Architecture',
-            'Algorithm Design',
+        $coecsId = Department::where('code', 'COECS')->value('id');
+        $cbaId = Department::where('code', 'CBA')->value('id');
+
+        $instructors = [
+            [
+                'email' => 'inst.it@cmc.edu.ph',
+                'department_id' => $coecsId,
+                'specialization' => 'Software Engineering',
+            ],
+            [
+                'email' => 'inst.cs@cmc.edu.ph',
+                'department_id' => $coecsId,
+                'specialization' => 'Data Structures and Algorithms',
+            ],
+            [
+                'email' => 'inst.ba@cmc.edu.ph',
+                'department_id' => $cbaId,
+                'specialization' => 'Business Management',
+            ],
+            [
+                'email' => 'inst.acc@cmc.edu.ph',
+                'department_id' => $cbaId,
+                'specialization' => 'Financial Accounting',
+            ],
         ];
 
-        // Program head (user_id 4)
-        Instructor::create([
-            'user_id' => 4,
-            'department_id' => 1, // COECS
-            'specialization' => 'Software Engineering',
-            'is_active' => true,
-        ]);
+        foreach ($instructors as $instructor) {
+            $userId = User::where('email', $instructor['email'])->value('id');
 
-        // Other instructors (user_ids 5-13)
-        for ($i = 5; $i <= 13; $i++) {
+            if (!$userId) {
+                continue;
+            }
+
             Instructor::create([
-                'user_id' => $i,
-                'department_id' => rand(1, 4),
-                'specialization' => $specializations[array_rand($specializations)],
+                'user_id' => $userId,
+                'department_id' => $instructor['department_id'],
+                'specialization' => $instructor['specialization'],
                 'is_active' => true,
             ]);
         }

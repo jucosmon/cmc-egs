@@ -592,7 +592,7 @@ class EnrollmentController extends Controller
                     $q->where('curriculum_subject_id', $prereq->id);
                 })
                 ->where('status', 'completed')
-                ->where('final_grade', '>=', 75)
+                ->where('final_grade', '<=', 3.0)
                 ->exists();
 
             if (!$hasCompleted) {

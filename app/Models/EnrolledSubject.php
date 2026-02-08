@@ -62,11 +62,11 @@ class EnrolledSubject extends Model
     // Methods
     public function isPassed()
     {
-        return $this->final_grade !== null && $this->final_grade >= 75;
+        return $this->final_grade !== null && $this->final_grade <= 3.0;
     }
 
     public function isFailed()
     {
-        return $this->final_grade !== null && $this->final_grade < 75;
+        return $this->final_grade !== null && $this->final_grade > 3.0;
     }
 }

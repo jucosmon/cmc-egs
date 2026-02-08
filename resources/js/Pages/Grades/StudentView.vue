@@ -26,6 +26,36 @@ const previousEnrollments = computed(() => {
         (enrollment) => enrollment.academic_term_id !== props.activeTermId,
     );
 });
+
+const getGradeRowClass = (finalGrade) => {
+    if (finalGrade === null || finalGrade === undefined) {
+        return "";
+    }
+
+    return Number(finalGrade) <= 3.0 ? "bg-green-50" : "bg-red-50";
+};
+
+const getYearLabel = (yearLevel) => {
+    const labels = {
+        1: "1st Year",
+        2: "2nd Year",
+        3: "3rd Year",
+        4: "4th Year",
+        5: "5th Year",
+    };
+
+    return labels[yearLevel] || "Year";
+};
+
+const getSemesterLabel = (semester) => {
+    const labels = {
+        first: "1st Sem",
+        second: "2nd Sem",
+        summer: "Summer",
+    };
+
+    return labels[semester] || "Sem";
+};
 </script>
 
 <template>
@@ -61,12 +91,14 @@ const previousEnrollments = computed(() => {
                                 Current Term Grades
                             </h3>
                             <p class="text-sm text-gray-600">
-                                {{
-                                    currentEnrollment.academic_term
-                                        ?.academic_year
-                                }}
+                                {{ getYearLabel(currentEnrollment.year_level) }}
                                 -
-                                {{ currentEnrollment.academic_term?.semester }}
+                                {{
+                                    getSemesterLabel(
+                                        currentEnrollment.academic_term
+                                            ?.semester,
+                                    )
+                                }}
                             </p>
                             <div class="mt-4 overflow-x-auto">
                                 <table
@@ -102,6 +134,11 @@ const previousEnrollments = computed(() => {
                                         <tr
                                             v-for="subject in currentEnrollment.enrolled_subjects"
                                             :key="subject.id"
+                                            :class="
+                                                getGradeRowClass(
+                                                    subject.final_grade,
+                                                )
+                                            "
                                         >
                                             <td class="px-4 py-3 text-sm">
                                                 <p
@@ -154,8 +191,12 @@ const previousEnrollments = computed(() => {
                     >
                         <div class="p-6">
                             <h3 class="text-lg font-semibold text-gray-900">
-                                {{ enrollment.academic_term?.academic_year }} -
-                                {{ enrollment.academic_term?.semester }}
+                                {{ getYearLabel(enrollment.year_level) }} -
+                                {{
+                                    getSemesterLabel(
+                                        enrollment.academic_term?.semester,
+                                    )
+                                }}
                             </h3>
                             <div class="mt-4 overflow-x-auto">
                                 <table
@@ -191,6 +232,11 @@ const previousEnrollments = computed(() => {
                                         <tr
                                             v-for="subject in enrollment.enrolled_subjects"
                                             :key="subject.id"
+                                            :class="
+                                                getGradeRowClass(
+                                                    subject.final_grade,
+                                                )
+                                            "
                                         >
                                             <td class="px-4 py-3 text-sm">
                                                 <p
