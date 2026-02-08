@@ -142,17 +142,25 @@ const visibleUserTypes = computed(() => {
 <template>
     <div>
         <div class="min-h-screen bg-gray-100">
-            <nav class="border-b border-gray-100 bg-white">
+            <nav class="border-b border-[#1f7fa3] bg-[#2596be] shadow-sm">
                 <!-- Primary Navigation Menu -->
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div class="flex h-16 justify-between">
                         <div class="flex">
                             <!-- Logo -->
                             <div class="flex shrink-0 items-center">
-                                <Link :href="safeRoute('dashboard')">
+                                <Link
+                                    :href="safeRoute('dashboard')"
+                                    class="flex items-center gap-3"
+                                >
                                     <ApplicationLogo
-                                        class="block h-9 w-auto fill-current text-gray-800"
+                                        class="block h-9 w-9 rounded-full ring-2 ring-white/30"
                                     />
+                                    <span
+                                        class="hidden text-sm font-semibold uppercase tracking-[0.2em] text-white/80 lg:inline"
+                                    >
+                                        CMC EGS
+                                    </span>
                                 </Link>
                             </div>
 
@@ -272,9 +280,9 @@ const visibleUserTypes = computed(() => {
                                         <template #trigger>
                                             <button
                                                 type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-white/80 transition duration-150 ease-in-out hover:text-white focus:outline-none"
                                                 :class="{
-                                                    'border-b-2 border-indigo-400 text-gray-900':
+                                                    'border-b-2 border-white text-white':
                                                         safeCurrent(
                                                             'reports.*',
                                                         ),
@@ -328,9 +336,9 @@ const visibleUserTypes = computed(() => {
                                         <template #trigger>
                                             <button
                                                 type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                class="inline-flex items-center rounded-md border border-transparent px-3 py-2 text-sm font-medium leading-4 text-white/80 transition duration-150 ease-in-out hover:text-white focus:outline-none"
                                                 :class="{
-                                                    'border-b-2 border-indigo-400 text-gray-900':
+                                                    'border-b-2 border-white text-white':
                                                         safeCurrent(
                                                             'accounts.*',
                                                         ),
@@ -379,7 +387,7 @@ const visibleUserTypes = computed(() => {
                                         <span class="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
+                                                class="inline-flex items-center rounded-md border border-transparent bg-white/10 px-3 py-2 text-sm font-medium leading-4 text-white transition duration-150 ease-in-out hover:bg-white/20 focus:outline-none"
                                             >
                                                 {{
                                                     page.props.auth?.user?.name
@@ -426,7 +434,7 @@ const visibleUserTypes = computed(() => {
                                     showingNavigationDropdown =
                                         !showingNavigationDropdown
                                 "
-                                class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                                class="inline-flex items-center justify-center rounded-md p-2 text-white/80 transition duration-150 ease-in-out hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none"
                             >
                                 <svg
                                     class="h-6 w-6"
@@ -468,7 +476,7 @@ const visibleUserTypes = computed(() => {
                         block: showingNavigationDropdown,
                         hidden: !showingNavigationDropdown,
                     }"
-                    class="sm:hidden"
+                    class="bg-[#1f7fa3] sm:hidden"
                 >
                     <div class="space-y-1 pb-3 pt-2">
                         <!-- Dashboard -->
@@ -571,10 +579,10 @@ const visibleUserTypes = computed(() => {
                         <!-- Reports (Registrar) -->
                         <div
                             v-if="canAccessReports"
-                            class="border-t border-gray-200 pt-2 mt-2"
+                            class="mt-2 border-t border-white/20 pt-2"
                         >
                             <div
-                                class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase"
+                                class="px-4 py-2 text-xs font-semibold uppercase text-white/70"
                             >
                                 Reports
                             </div>
@@ -599,10 +607,10 @@ const visibleUserTypes = computed(() => {
                         <!-- Accounts (IT Admin, Dean, Program Head, Registrar) -->
                         <div
                             v-if="canAccessAccounts"
-                            class="border-t border-gray-200 pt-2 mt-2"
+                            class="mt-2 border-t border-white/20 pt-2"
                         >
                             <div
-                                class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase"
+                                class="px-4 py-2 text-xs font-semibold uppercase text-white/70"
                             >
                                 Accounts
                             </div>
