@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Subject;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SubjectController extends Controller
@@ -40,7 +41,12 @@ class SubjectController extends Controller
     {
         $validated = $request->validate([
             'code' => 'required|string|max:20|unique:subjects,code',
-            'title' => 'required|string|max:150',
+            'title' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('subjects', 'title'),
+            ],
             'description' => 'nullable|string',
             'units' => 'required|integer|min:1|max:10',
         ]);
@@ -75,7 +81,12 @@ class SubjectController extends Controller
     {
         $validated = $request->validate([
             'code' => 'required|string|max:20|unique:subjects,code,' . $subject->id,
-            'title' => 'required|string|max:150',
+            'title' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('subjects', 'title')->ignore($subject->id),
+            ],
             'description' => 'nullable|string',
             'units' => 'required|integer|min:1|max:10',
         ]);

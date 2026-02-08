@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AcademicTerm;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AcademicTermController extends Controller
@@ -43,7 +44,15 @@ class AcademicTermController extends Controller
     {
         $validated = $request->validate([
             'academic_year' => 'required|string|max:9|regex:/^\d{4}-\d{4}$/',
-            'semester' => 'required|in:first,second,summer',
+            'semester' => [
+                'required',
+                'in:first,second,summer',
+                Rule::unique('academic_terms')->where(function ($query) use ($request) {
+                    return $query
+                        ->where('academic_year', $request->input('academic_year'))
+                        ->where('semester', $request->input('semester'));
+                }),
+            ],
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
             'start_enrollment' => 'required|date',
@@ -117,7 +126,16 @@ class AcademicTermController extends Controller
     {
         $validated = $request->validate([
             'academic_year' => 'required|string|max:9|regex:/^\d{4}-\d{4}$/',
-            'semester' => 'required|in:first,second,summer',
+            'semester' => [
+                'required',
+                'in:first,second,summer',
+                Rule::unique('academic_terms')->where(function ($query) use ($request, $term) {
+                    return $query
+                        ->where('academic_year', $request->input('academic_year'))
+                        ->where('semester', $request->input('semester'))
+                        ->where('id', '!=', $term->id);
+                }),
+            ],
             'start_date' => 'required|date',
             'end_date' => 'required|date|after:start_date',
             'start_enrollment' => 'required|date',
