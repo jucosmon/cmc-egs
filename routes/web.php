@@ -162,7 +162,7 @@ Route::middleware('auth')->group(function () {
     // Accounts (IT Admin, Dean, Program Head, Registrar)
     Route::middleware('role:it_admin,dean,program_head,registrar')->group(function () {
         Route::resource('accounts', AccountController::class);
-        Route::post('accounts/{user}/reset-password', [AccountController::class, 'resetPassword'])
+        Route::post('accounts/{account}/reset-password', [AccountController::class, 'resetPassword'])
             ->name('accounts.reset-password');
     });
 

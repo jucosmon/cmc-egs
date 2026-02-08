@@ -44,14 +44,15 @@ const props = defineProps({
 const showResetPasswordModal = ref(false);
 
 const resetPasswordForm = useForm({
-    password: "",
-    password_confirmation: "",
     type: props.userType,
 });
 
 const handleResetPassword = () => {
     resetPasswordForm.post(
-        route("accounts.reset-password", { account: props.account.id }),
+        route("accounts.reset-password", {
+            account: props.account.id,
+            type: props.userType,
+        }),
         {
             onSuccess: () => {
                 showResetPasswordModal.value = false;
@@ -527,47 +528,17 @@ const getRoleLabel = (role) => {
                         <h2 class="mb-4 text-lg font-semibold text-gray-900">
                             Reset Password
                         </h2>
+                        <p class="mb-6 text-sm text-gray-600">
+                            This will generate a new temporary password and send
+                            it to the user's personal email.
+                        </p>
+                        <p class="mb-6 text-sm text-gray-600">
+                            Personal Email:
+                            <span class="font-medium text-gray-900">
+                                {{ account.personal_email || "N/A" }}
+                            </span>
+                        </p>
                         <form @submit.prevent="handleResetPassword">
-                            <div class="mb-4">
-                                <label
-                                    for="password"
-                                    class="block text-sm font-medium text-gray-700"
-                                >
-                                    New Password
-                                </label>
-                                <input
-                                    id="password"
-                                    v-model="resetPasswordForm.password"
-                                    type="password"
-                                    class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    required
-                                />
-                                <span
-                                    v-if="resetPasswordForm.errors.password"
-                                    class="mt-1 text-sm text-red-600"
-                                >
-                                    {{ resetPasswordForm.errors.password }}
-                                </span>
-                            </div>
-
-                            <div class="mb-6">
-                                <label
-                                    for="password_confirmation"
-                                    class="block text-sm font-medium text-gray-700"
-                                >
-                                    Confirm Password
-                                </label>
-                                <input
-                                    id="password_confirmation"
-                                    v-model="
-                                        resetPasswordForm.password_confirmation
-                                    "
-                                    type="password"
-                                    class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                                    required
-                                />
-                            </div>
-
                             <div class="flex justify-end space-x-4">
                                 <button
                                     type="button"
@@ -583,8 +554,8 @@ const getRoleLabel = (role) => {
                                 >
                                     {{
                                         resetPasswordForm.processing
-                                            ? "Saving..."
-                                            : "Save"
+                                            ? "Sending..."
+                                            : "Confirm Reset"
                                     }}
                                 </button>
                             </div>

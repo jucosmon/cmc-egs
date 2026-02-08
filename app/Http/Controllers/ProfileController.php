@@ -21,6 +21,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $user->load([
             'student.program.department',
+            'student.block',
             'instructor.department',
             'programAsHead.department',
             'departmentAsProgramHead',

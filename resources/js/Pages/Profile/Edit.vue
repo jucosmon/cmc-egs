@@ -159,6 +159,14 @@ const getRoleLabel = (role) => {
                             </div>
                             <div>
                                 <dt class="text-sm font-medium text-gray-500">
+                                    Personal Email
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ props.account.personal_email || "N/A" }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
                                     Official ID
                                 </dt>
                                 <dd class="mt-1 text-sm text-gray-900">
@@ -370,7 +378,22 @@ const getRoleLabel = (role) => {
                                     Block
                                 </dt>
                                 <dd class="mt-1 text-sm text-gray-900">
-                                    {{ props.student.block?.name || "N/A" }}
+                                    {{
+                                        props.student.block
+                                            ? `${props.student.block.code} (${props.student.block.admission_year})`
+                                            : "N/A"
+                                    }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Program Department
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{
+                                        props.student.program?.department
+                                            ?.name || "N/A"
+                                    }}
                                 </dd>
                             </div>
                         </dl>
@@ -406,6 +429,16 @@ const getRoleLabel = (role) => {
                                 <dd class="mt-1 text-sm text-gray-900">
                                     {{
                                         formatDate(props.instructor.created_at)
+                                    }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Specialization
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{
+                                        props.instructor.specialization || "N/A"
                                     }}
                                 </dd>
                             </div>

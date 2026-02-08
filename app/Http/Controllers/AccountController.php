@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\Instructor;
 use App\Models\Block;
 use App\Mail\AccountCreatedMail;
+use App\Mail\AccountPasswordResetMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -321,8 +323,9 @@ class AccountController extends Controller
         $program = $account->role === 'program_head' ? $account->programAsHead : null;
         $department = $account->role === 'dean' ? $account->departmentAsDean : null;
 
-        // Check if current user can update this account
+        // Check if current user can update/reset this account
         $canUpdate = $this->canUpdateAccount($currentUser, $account, $type);
+        $canResetPassword = $this->canResetPassword($currentUser, $account, $type);
 
         return Inertia::render('Accounts/Show', [
             'account' => $account,
@@ -332,7 +335,7 @@ class AccountController extends Controller
             'program' => $program,
             'department' => $department,
             'canUpdate' => $canUpdate,
-            'canResetPassword' => $canUpdate,
+            'canResetPassword' => $canResetPassword,
         ]);
     }
 
@@ -535,16 +538,75 @@ class AccountController extends Controller
             abort(403);
         }
 
-        $validated = $request->validate([
-            'password' => 'required|string|confirmed',
-        ]);
+        if (!$account->personal_email) {
+            return redirect()->route('accounts.show', ['account' => $account, 'type' => $type])
+                ->with('warning', 'Cannot reset password because the account has no personal email.');
+        }
+
+        $newPassword = Str::random(10);
 
         $account->update([
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($newPassword),
         ]);
 
-        return redirect()->route('accounts.show', ['account' => $account, 'type' => $type])
-            ->with('success', 'You have successfully reset the password!');
+        $emailSent = false;
+        try {
+            $mailtrapToken = config('services.mailtrap.token');
+            if ($mailtrapToken) {
+                $fromAddress = config('mail.from.address');
+                $fromName = config('mail.from.name') ?: 'CMC EGS';
+                $html = view('emails.account-password-reset', [
+                    'user' => $account,
+                    'temporaryPassword' => $newPassword,
+                ])->render();
+
+                /** @var \Illuminate\Http\Client\Response $response */
+                $response = Http::withToken($mailtrapToken)
+                    ->post(config('services.mailtrap.endpoint'), [
+                        'from' => [
+                            'email' => $fromAddress,
+                            'name' => $fromName,
+                        ],
+                        'to' => [
+                            ['email' => $account->personal_email],
+                        ],
+                        'subject' => 'Your CMC EGS password has been reset',
+                        'text' => 'Your password has been reset. Use the temporary password provided to log in and update it right away.',
+                        'html' => $html,
+                    ]);
+
+                $emailSent = $response->successful();
+
+                if (!$emailSent) {
+                    Log::warning('Mailtrap API password reset send failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'user_id' => $account->id,
+                    ]);
+                }
+            } else {
+                Mail::to($account->personal_email)->send(
+                    new AccountPasswordResetMail($account, $newPassword)
+                );
+                $emailSent = true;
+            }
+        } catch (\Exception $e) {
+            Log::warning('Account password reset email failed to send', [
+                'user_id' => $account->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        $redirect = redirect()->route('accounts.show', ['account' => $account, 'type' => $type])
+            ->with('success', 'Password reset complete.');
+
+        if ($emailSent) {
+            $redirect->with('info', 'Temporary password sent to ' . $account->personal_email . '.');
+        } else {
+            $redirect->with('warning', 'Password reset, but the email could not be sent.');
+        }
+
+        return $redirect;
     }
 
     /**
