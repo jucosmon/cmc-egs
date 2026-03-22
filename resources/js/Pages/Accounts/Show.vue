@@ -5,6 +5,7 @@ import { computed, ref } from "vue";
 
 const page = usePage();
 const flash = computed(() => page.props.flash || {});
+const isITAdmin = computed(() => page.props.auth?.user?.role === "it_admin");
 
 const props = defineProps({
     account: {
@@ -47,6 +48,10 @@ const resetPasswordForm = useForm({
     type: props.userType,
 });
 
+const deleteForm = useForm({
+    type: props.userType,
+});
+
 const handleResetPassword = () => {
     resetPasswordForm.post(
         route("accounts.reset-password", {
@@ -59,6 +64,23 @@ const handleResetPassword = () => {
                 resetPasswordForm.reset();
             },
         },
+    );
+};
+
+const handleDeleteAccount = () => {
+    if (
+        !confirm(
+            "Are you sure you want to delete this account? This action cannot be undone.",
+        )
+    ) {
+        return;
+    }
+
+    deleteForm.delete(
+        route("accounts.destroy", {
+            account: props.account.id,
+            type: props.userType,
+        }),
     );
 };
 
@@ -471,7 +493,7 @@ const getRoleLabel = (role) => {
                 <!-- Action Buttons -->
                 <div class="flex space-x-4">
                     <Link
-                        v-if="canUpdate"
+                        v-if="isITAdmin && canUpdate"
                         :href="
                             route('accounts.edit', {
                                 account: account.id,
@@ -496,7 +518,7 @@ const getRoleLabel = (role) => {
                         Update Account
                     </Link>
                     <button
-                        v-if="canResetPassword"
+                        v-if="isITAdmin && canResetPassword"
                         @click="showResetPasswordModal = true"
                         class="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                     >
@@ -514,6 +536,18 @@ const getRoleLabel = (role) => {
                             />
                         </svg>
                         Reset Password
+                    </button>
+                    <button
+                        v-if="isITAdmin"
+                        @click="handleDeleteAccount"
+                        :disabled="deleteForm.processing"
+                        class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-2 disabled:opacity-60"
+                    >
+                        {{
+                            deleteForm.processing
+                                ? "Deleting..."
+                                : "Delete Account"
+                        }}
                     </button>
                 </div>
 

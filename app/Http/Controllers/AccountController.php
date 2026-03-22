@@ -13,6 +13,7 @@ use App\Mail\AccountPasswordResetMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -58,6 +59,8 @@ class AccountController extends Controller
      */
     public function create(Request $request): Response
     {
+        Gate::authorize('manage-accounts');
+
         $type = $request->query('type', 'student');
         $user = Auth::user();
 
@@ -114,6 +117,8 @@ class AccountController extends Controller
      */
     public function store(Request $request): \Illuminate\Http\RedirectResponse
     {
+        Gate::authorize('manage-accounts');
+
         $type = $request->input('type', 'student');
         $user = Auth::user();
 
@@ -344,6 +349,8 @@ class AccountController extends Controller
      */
     public function edit(User $account): Response
     {
+        Gate::authorize('manage-accounts');
+
         $currentUser = Auth::user();
         $type = request('type', $account->role);
 
@@ -436,6 +443,8 @@ class AccountController extends Controller
      */
     public function update(Request $request, User $account): \Illuminate\Http\RedirectResponse
     {
+        Gate::authorize('manage-accounts');
+
         $currentUser = Auth::user();
         $type = $request->input('type', $account->role);
 
@@ -634,13 +643,9 @@ class AccountController extends Controller
      */
     public function destroy(User $account): \Illuminate\Http\RedirectResponse
     {
-        $currentUser = Auth::user();
-        $type = $account->role;
+        Gate::authorize('manage-accounts');
 
-        // Only IT Admin can delete accounts
-        if ($currentUser->role !== 'it_admin') {
-            abort(403);
-        }
+        $type = $account->role;
 
         $account->delete();
 
@@ -731,33 +736,17 @@ class AccountController extends Controller
      */
     private function getVisibleUserTypes($user)
     {
-        $types = [];
-
         if ($user->role === 'it_admin') {
-            $types = [
+            return [
                 ['name' => 'Dean', 'value' => 'dean'],
                 ['name' => 'Program Head', 'value' => 'program_head'],
                 ['name' => 'Registrar', 'value' => 'registrar'],
                 ['name' => 'Instructor', 'value' => 'instructor'],
                 ['name' => 'Student', 'value' => 'student'],
             ];
-        } elseif ($user->role === 'dean') {
-            $types = [
-                ['name' => 'Program Head', 'value' => 'program_head'],
-                ['name' => 'Instructor', 'value' => 'instructor'],
-                ['name' => 'Student', 'value' => 'student'],
-            ];
-        } elseif ($user->role === 'program_head') {
-            $types = [
-                ['name' => 'Student', 'value' => 'student'],
-            ];
-        } elseif ($user->role === 'registrar') {
-            $types = [
-                ['name' => 'Student', 'value' => 'student'],
-            ];
         }
 
-        return $types;
+        return [];
     }
 
     /**
@@ -765,15 +754,8 @@ class AccountController extends Controller
      */
     private function canCreateAccounts($user, $type): bool
     {
-        if ($user->role === 'it_admin') {
-            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor']);
-        }
-
-        if ($user->role === 'registrar') {
-            return $type === 'student';
-        }
-
-        return false;
+        return $user->role === 'it_admin'
+            && in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student'], true);
     }
 
     /**
@@ -781,15 +763,8 @@ class AccountController extends Controller
      */
     private function canUpdateAccount($user, $targetUser, $type): bool
     {
-        if ($user->role === 'it_admin') {
-            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student']);
-        }
-
-        if ($user->role === 'registrar' && $type === 'student') {
-            return true;
-        }
-
-        return false;
+        return $user->role === 'it_admin'
+            && in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student'], true);
     }
 
     /**
@@ -797,11 +772,8 @@ class AccountController extends Controller
      */
     private function canResetPassword($user, $targetUser, $type): bool
     {
-        if ($user->role === 'it_admin') {
-            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student']);
-        }
-
-        return false;
+        return $user->role === 'it_admin'
+            && in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student'], true);
     }
 
     /**

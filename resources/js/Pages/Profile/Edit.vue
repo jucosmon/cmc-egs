@@ -36,6 +36,7 @@ const props = defineProps({
 
 const activePanel = ref("view");
 const page = usePage();
+const isITAdmin = computed(() => page.props.auth?.user?.role === "it_admin");
 
 const flashSuccess = computed(() => {
     const value = page.props.flash?.success;
@@ -174,6 +175,7 @@ const getFullNameWithMiddleInitial = () => {
                             </div>
                             <div class="mt-4 flex flex-wrap gap-3">
                                 <button
+                                    v-if="isITAdmin"
                                     type="button"
                                     @click="activePanel = 'update'"
                                     class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
@@ -196,6 +198,13 @@ const getFullNameWithMiddleInitial = () => {
                                     Back to Details
                                 </button>
                             </div>
+                            <p
+                                v-if="!isITAdmin"
+                                class="mt-4 text-sm text-amber-700"
+                            >
+                                Profile updates are restricted. Contact IT Admin
+                                for account changes.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -509,7 +518,7 @@ const getFullNameWithMiddleInitial = () => {
                 </div>
 
                 <div
-                    v-if="activePanel === 'update'"
+                    v-if="isITAdmin && activePanel === 'update'"
                     class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
                 >
                     <UpdateProfileInformationForm

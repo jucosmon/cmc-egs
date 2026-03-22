@@ -29,8 +29,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::patch('/profile', [ProfileController::class, 'update'])
+        ->middleware('role:it_admin')
+        ->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])
+        ->middleware('role:it_admin')
+        ->name('profile.destroy');
 
         // IT Admin routes
     Route::middleware('role:it_admin')->group(function () {
@@ -155,8 +159,8 @@ Route::middleware('auth')->group(function () {
             ->name('enrollments.instructor-classes');
     });
 
-    // Accounts (IT Admin, Dean, Program Head, Registrar)
-    Route::middleware('role:it_admin,dean,program_head,registrar')->group(function () {
+    // Accounts (IT Admin only)
+    Route::middleware('role:it_admin')->group(function () {
         Route::resource('accounts', AccountController::class);
         Route::post('accounts/{account}/reset-password', [AccountController::class, 'resetPassword'])
             ->name('accounts.reset-password');
