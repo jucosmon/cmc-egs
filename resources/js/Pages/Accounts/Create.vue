@@ -61,6 +61,15 @@ const form = useForm({
     year_level: "",
     status: "",
     block_id: "",
+    birth_place: "",
+    religion: "",
+    citizenship: "Filipino",
+    father_name: "",
+    mother_name: "",
+    elementary_school: "",
+    elementary_year: "",
+    secondary_school: "",
+    secondary_year: "",
     type: props.userType,
 });
 
@@ -569,6 +578,150 @@ const getRoleLabel = (role) => {
 
                         <!-- Student Fields -->
                         <div v-if="showStudentFields" class="space-y-4">
+                            <div>
+                                <label
+                                    for="birth_place"
+                                    class="block text-sm font-medium text-gray-700"
+                                >
+                                    Birth Place
+                                </label>
+                                <input
+                                    id="birth_place"
+                                    v-model="form.birth_place"
+                                    type="text"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    for="religion"
+                                    class="block text-sm font-medium text-gray-700"
+                                >
+                                    Religion
+                                </label>
+                                <input
+                                    id="religion"
+                                    v-model="form.religion"
+                                    type="text"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    for="citizenship"
+                                    class="block text-sm font-medium text-gray-700"
+                                >
+                                    Citizenship
+                                </label>
+                                <input
+                                    id="citizenship"
+                                    v-model="form.citizenship"
+                                    type="text"
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                />
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label
+                                        for="father_name"
+                                        class="block text-sm font-medium text-gray-700"
+                                    >
+                                        Father's Name
+                                    </label>
+                                    <input
+                                        id="father_name"
+                                        v-model="form.father_name"
+                                        type="text"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label
+                                        for="mother_name"
+                                        class="block text-sm font-medium text-gray-700"
+                                    >
+                                        Mother's Name
+                                    </label>
+                                    <input
+                                        id="mother_name"
+                                        v-model="form.mother_name"
+                                        type="text"
+                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div class="rounded-md border border-gray-200 p-4">
+                                <p class="text-sm font-semibold text-gray-700">
+                                    Preliminary Education
+                                </p>
+                                <div
+                                    class="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2"
+                                >
+                                    <div class="sm:col-span-2">
+                                        <label
+                                            for="elementary_school"
+                                            class="block text-sm font-medium text-gray-700"
+                                        >
+                                            Elementary School
+                                        </label>
+                                        <input
+                                            id="elementary_school"
+                                            v-model="form.elementary_school"
+                                            type="text"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            for="elementary_year"
+                                            class="block text-sm font-medium text-gray-700"
+                                        >
+                                            Elementary School Year
+                                        </label>
+                                        <input
+                                            id="elementary_year"
+                                            v-model="form.elementary_year"
+                                            type="text"
+                                            placeholder="e.g. 2017-2018"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <label
+                                            for="secondary_school"
+                                            class="block text-sm font-medium text-gray-700"
+                                        >
+                                            Secondary School
+                                        </label>
+                                        <input
+                                            id="secondary_school"
+                                            v-model="form.secondary_school"
+                                            type="text"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label
+                                            for="secondary_year"
+                                            class="block text-sm font-medium text-gray-700"
+                                        >
+                                            Secondary School Year
+                                        </label>
+                                        <input
+                                            id="secondary_year"
+                                            v-model="form.secondary_year"
+                                            type="text"
+                                            placeholder="e.g. 2021-2022"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 <label
                                     class="block text-sm font-medium text-gray-700"

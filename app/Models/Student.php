@@ -15,10 +15,28 @@ class Student extends Model
         'block_id',
         'program_id',
         'user_id',
+        'birth_place',
+        'religion',
+        'citizenship',
+        'father_name',
+        'mother_name',
+        'elementary_school',
+        'elementary_year',
+        'secondary_school',
+        'secondary_year',
     ];
 
     protected $casts = [
         'year_level' => 'integer',
+        'birth_place' => 'string',
+        'religion' => 'string',
+        'citizenship' => 'string',
+        'father_name' => 'string',
+        'mother_name' => 'string',
+        'elementary_school' => 'string',
+        'elementary_year' => 'string',
+        'secondary_school' => 'string',
+        'secondary_year' => 'string',
     ];
 
     // Relationships

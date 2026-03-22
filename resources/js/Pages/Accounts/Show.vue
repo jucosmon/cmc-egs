@@ -473,6 +473,77 @@ const formatPhone = (phone) => {
                                     }}
                                 </dd>
                             </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Birth Place
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.birth_place || "N/A" }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Religion
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.religion || "N/A" }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Citizenship
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.citizenship || "Filipino" }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Father's Name
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.father_name || "N/A" }}
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Mother's Name
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{ student.mother_name || "N/A" }}
+                                </dd>
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Elementary School
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{
+                                        student.elementary_school
+                                            ? `${student.elementary_school} (${student.elementary_year || "N/A"})`
+                                            : "N/A"
+                                    }}
+                                </dd>
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <dt class="text-sm font-medium text-gray-500">
+                                    Secondary School
+                                </dt>
+                                <dd class="mt-1 text-sm text-gray-900">
+                                    {{
+                                        student.secondary_school
+                                            ? `${student.secondary_school} (${student.secondary_year || "N/A"})`
+                                            : "N/A"
+                                    }}
+                                </dd>
+                            </div>
                         </dl>
                     </div>
                 </div>

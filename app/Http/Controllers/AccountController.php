@@ -157,6 +157,15 @@ class AccountController extends Controller
             'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
             'status' => $isStudent ? 'required|in:regular,irregular,graduated' : 'nullable',
             'block_id' => $isStudent ? 'required|exists:blocks,id' : 'nullable',
+            'birth_place' => $isStudent ? 'nullable|string|max:150' : 'nullable',
+            'religion' => $isStudent ? 'nullable|string|max:100' : 'nullable',
+            'citizenship' => $isStudent ? 'nullable|string|max:100' : 'nullable',
+            'father_name' => $isStudent ? 'nullable|string|max:150' : 'nullable',
+            'mother_name' => $isStudent ? 'nullable|string|max:150' : 'nullable',
+            'elementary_school' => $isStudent ? 'nullable|string|max:200' : 'nullable',
+            'elementary_year' => $isStudent ? 'nullable|string|max:30' : 'nullable',
+            'secondary_school' => $isStudent ? 'nullable|string|max:200' : 'nullable',
+            'secondary_year' => $isStudent ? 'nullable|string|max:30' : 'nullable',
         ], [
             'first_name.regex' => 'First name must contain letters only.',
             'middle_name.regex' => 'Middle name must contain letters only.',
@@ -244,6 +253,7 @@ class AccountController extends Controller
                     'year_level' => $validated['year_level'] ?? null,
                     'status' => $validated['status'] ?? null,
                     'block_id' => $selectedBlock->id,
+                    ...$this->extractStudentTorFields($validated),
                 ]);
             }
 
@@ -510,6 +520,15 @@ class AccountController extends Controller
             'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
             'status' => $isStudent ? 'required|in:regular,irregular,graduated' : 'nullable',
             'block_id' => $isStudent ? 'required|exists:blocks,id' : 'nullable',
+            'birth_place' => $isStudent ? 'nullable|string|max:150' : 'nullable',
+            'religion' => $isStudent ? 'nullable|string|max:100' : 'nullable',
+            'citizenship' => $isStudent ? 'nullable|string|max:100' : 'nullable',
+            'father_name' => $isStudent ? 'nullable|string|max:150' : 'nullable',
+            'mother_name' => $isStudent ? 'nullable|string|max:150' : 'nullable',
+            'elementary_school' => $isStudent ? 'nullable|string|max:200' : 'nullable',
+            'elementary_year' => $isStudent ? 'nullable|string|max:30' : 'nullable',
+            'secondary_school' => $isStudent ? 'nullable|string|max:200' : 'nullable',
+            'secondary_year' => $isStudent ? 'nullable|string|max:30' : 'nullable',
         ];
 
         if ($type === 'program_head') {
@@ -572,6 +591,7 @@ class AccountController extends Controller
                     'year_level' => $validated['year_level'] ?? $student->year_level,
                     'status' => $validated['status'] ?? $student->status,
                     'block_id' => $resolvedBlock->id,
+                    ...$this->extractStudentTorFields($validated),
                 ]);
             } elseif (isset($validated['program_id'])) {
                 \App\Models\Student::create([
@@ -580,6 +600,7 @@ class AccountController extends Controller
                     'year_level' => $validated['year_level'] ?? 1,
                     'status' => $validated['status'] ?? 'regular',
                     'block_id' => $resolvedBlock->id,
+                    ...$this->extractStudentTorFields($validated),
                 ]);
             }
         } elseif ($account->role === 'instructor') {
@@ -1039,5 +1060,20 @@ class AccountController extends Controller
         }
 
         return null;
+    }
+
+    private function extractStudentTorFields(array $validated): array
+    {
+        return [
+            'birth_place' => $validated['birth_place'] ?? null,
+            'religion' => $validated['religion'] ?? null,
+            'citizenship' => $validated['citizenship'] ?? null,
+            'father_name' => $validated['father_name'] ?? null,
+            'mother_name' => $validated['mother_name'] ?? null,
+            'elementary_school' => $validated['elementary_school'] ?? null,
+            'elementary_year' => $validated['elementary_year'] ?? null,
+            'secondary_school' => $validated['secondary_school'] ?? null,
+            'secondary_year' => $validated['secondary_year'] ?? null,
+        ];
     }
 }

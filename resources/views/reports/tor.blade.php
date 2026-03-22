@@ -194,18 +194,14 @@
                 . ($user->middle_name ? ' ' . strtoupper($user->middle_name) : '');
     $address    = strtoupper($user->address    ?? 'N/A');
     $birthDate  = $user->date_of_birth ? strtoupper($user->date_of_birth->format('F d, Y')) : 'N/A';
-    $birthPlace = strtoupper($user->birth_place ?? 'N/A');
+    $birthPlace = strtoupper($student->birth_place ?? 'N/A');
     $sex        = ucfirst(strtolower($user->sex ?? 'N/A'));
-    $religion   = $user->religion    ?? 'N/A';
-    $citizenship= $user->citizenship ?? 'Filipino';
+    $religion   = $student->religion ?? 'N/A';
+    $citizenship= $student->citizenship ?: 'Filipino';
 
-    // Parents: stored as newline-separated or array
-    $parentsRaw = $user->parents ?? '';
-    $parentLines = is_array($parentsRaw)
-        ? $parentsRaw
-        : array_filter(array_map('trim', explode("\n", $parentsRaw)));
-    $parent1 = strtoupper($parentLines[0] ?? 'N/A');
-    $parent2 = isset($parentLines[1]) ? strtoupper($parentLines[1]) : null;
+    // Use explicit father/mother student fields for TOR parent details.
+    $parent1 = strtoupper($student->father_name ?? 'N/A');
+    $parent2 = strtoupper($student->mother_name ?? 'N/A');
 
     /* ─── Preliminary education ─── */
     $elemSchool = strtoupper($student->elementary_school ?? 'N/A');
@@ -268,8 +264,8 @@
                 <tr>
                     <td class="lbl">Parents</td>
                     <td class="val">
-                        {{ $parent1 }}
-                        @if($parent2)<br/>{{ $parent2 }}@endif
+                        FATHER: {{ $parent1 }}<br/>
+                        MOTHER: {{ $parent2 }}
                     </td>
                 </tr>
             </table>
