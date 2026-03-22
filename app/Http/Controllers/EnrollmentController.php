@@ -245,11 +245,16 @@ class EnrollmentController extends Controller
             return response()->json(['subjects' => []]);
         }
 
-        // Get scheduled subjects for this block and term
+        // Get scheduled subjects for this block and term (only active subjects)
         $scheduledSubjects = ScheduledSubject::where('block_id', $blockId)
             ->where('academic_term_id', $termId)
-            ->with(['curriculumSubject.subject', 'instructor.user'])
+            ->with(['curriculumSubject.subject' => function ($query) {
+                $query->where('is_active', true);
+            }, 'instructor.user'])
             ->get()
+            ->filter(function ($ss) {
+                return $ss->curriculumSubject && $ss->curriculumSubject->subject !== null;
+            })
             ->map(function ($ss) {
                 return [
                     'id' => $ss->id,
@@ -261,7 +266,8 @@ class EnrollmentController extends Controller
                     'room' => $ss->room,
                     'instructor' => $ss->instructor->user->first_name . ' ' . $ss->instructor->user->last_name,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json(['subjects' => $scheduledSubjects]);
     }

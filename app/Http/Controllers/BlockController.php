@@ -276,10 +276,15 @@ class BlockController extends Controller
             return response()->json(['subjects' => []]);
         }
 
-        // Get all curriculum subjects with their related subject info
+        // Get all curriculum subjects with their related subject info (only active subjects)
         $curriculumSubjects = CurriculumSubject::where('curriculum_id', $curriculum->id)
-            ->with('subject')
+            ->with(['subject' => function ($query) {
+                $query->where('is_active', true);
+            }])
             ->get()
+            ->filter(function ($cs) {
+                return $cs->subject !== null; // Remove any where subject is archived
+            })
             ->map(function ($cs) {
                 return [
                     'id' => $cs->id,
@@ -290,7 +295,8 @@ class BlockController extends Controller
                     'semester' => $cs->semester,
                     'has_laboratory' => $cs->has_laboratory,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json(['subjects' => $curriculumSubjects]);
     }

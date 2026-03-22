@@ -13,6 +13,12 @@ class SubjectController extends Controller
     {
         $query = Subject::query();
 
+        // Filter by active status - only show inactive if show_archived=1
+        $showArchived = $request->input('show_archived') === '1' || $request->input('show_archived') === 1;
+        if (!$showArchived) {
+            $query->where('is_active', true);
+        }
+
         // Search functionality
         if ($request->has('search')) {
             $search = $request->search;
@@ -28,7 +34,7 @@ class SubjectController extends Controller
 
         return Inertia::render('Subjects/Index', [
             'subjects' => $subjects,
-            'filters' => $request->only('search'),
+            'filters' => $request->only('search', 'show_archived'),
         ]);
     }
 
@@ -99,6 +105,13 @@ class SubjectController extends Controller
 
     public function destroy(Subject $subject)
     {
+        // If subject is already archived (is_active = false), unarchive it
+        if (!$subject->is_active) {
+            $subject->update(['is_active' => true, 'archived_at' => null]);
+            return redirect()->route('subjects.index')
+                ->with('success', 'Subject restored successfully.');
+        }
+
         // Check if subject is being used in any curriculum
         if ($subject->curriculumSubjects()->count() > 0) {
             return back()->withErrors([

@@ -74,7 +74,11 @@ class CurriculumController extends Controller
         } else {
             $programs = Program::active()->select('id', 'name', 'code')->get();
         }
-        $subjects = Subject::select('id', 'code', 'title', 'units')->orderBy('code')->get();
+        // Only get active subjects
+        $subjects = Subject::where('is_active', true)
+            ->select('id', 'code', 'title', 'units')
+            ->orderBy('code')
+            ->get();
 
         return Inertia::render('Curriculums/Create', [
             'programs' => $programs,
@@ -182,7 +186,11 @@ class CurriculumController extends Controller
         } else {
             $programs = Program::active()->select('id', 'name', 'code')->get();
         }
-        $subjects = Subject::select('id', 'code', 'title', 'units')->orderBy('code')->get();
+        // Only get active subjects for dropdown
+        $subjects = Subject::where('is_active', true)
+            ->select('id', 'code', 'title', 'units')
+            ->orderBy('code')
+            ->get();
 
         return Inertia::render('Curriculums/Edit', [
             'curriculum' => $curriculum,

@@ -15,15 +15,24 @@ class Subject extends Model
         'title',
         'description',
         'units',
+        'is_active',
     ];
 
     protected $casts = [
         'units' => 'integer',
+        'is_active' => 'boolean',
+        'archived_at' => 'datetime',
     ];
 
     // Relationships
     public function curriculumSubjects()
     {
         return $this->hasMany(CurriculumSubject::class);
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

@@ -1,7 +1,11 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
 import { computed } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+const archiveError = computed(() => page.props.errors?.archive || null);
 
 const { subject } = defineProps({ subject: Object });
 
@@ -9,8 +13,13 @@ const curriculumItems = computed(
     () => subject.curriculum_subjects || subject.curriculumSubjects || [],
 );
 
-const deleteSubject = () => {
-    if (confirm("Are you sure you want to delete this subject?")) {
+const toggleArchiveSubject = () => {
+    const action = subject.is_active ? "archive" : "unarchive";
+    const message = subject.is_active
+        ? "Are you sure you want to archive this subject?"
+        : "Are you sure you want to restore this subject?";
+
+    if (confirm(message)) {
         router.delete(route("subjects.destroy", subject.id));
     }
 };
@@ -25,6 +34,25 @@ const deleteSubject = () => {
                 <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div
+                            v-if="flash.success"
+                            class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                        >
+                            {{ flash.success }}
+                        </div>
+                        <div
+                            v-if="flash.error"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ flash.error }}
+                        </div>
+                        <div
+                            v-if="archiveError"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ archiveError }}
+                        </div>
+
+                        <div
                             class="mb-6 flex flex-wrap items-center justify-between gap-4"
                         >
                             <div>
@@ -33,6 +61,12 @@ const deleteSubject = () => {
                                 </h2>
                                 <p class="text-sm text-gray-600">
                                     Code: {{ subject.code }}
+                                </p>
+                                <p
+                                    v-if="!subject.is_active"
+                                    class="mt-1 text-xs font-semibold text-red-600"
+                                >
+                                    STATUS: ARCHIVED
                                 </p>
                             </div>
                             <div class="flex gap-2">
@@ -44,10 +78,15 @@ const deleteSubject = () => {
                                 </Link>
                                 <button
                                     type="button"
-                                    class="rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                                    @click="deleteSubject"
+                                    :class="[
+                                        'rounded-md px-4 py-2 text-white',
+                                        subject.is_active
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-green-600 hover:bg-green-700',
+                                    ]"
+                                    @click="toggleArchiveSubject"
                                 >
-                                    Delete
+                                    {{ subject.is_active ? "Archive" : "Restore" }}
                                 </button>
                                 <Link
                                     :href="route('subjects.index')"

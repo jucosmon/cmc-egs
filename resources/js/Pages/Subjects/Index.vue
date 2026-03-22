@@ -14,11 +14,22 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search ?? "");
+const showArchived = ref(Boolean(props.filters?.show_archived));
 
 const submitSearch = () => {
+    const params = {
+        search: search.value || undefined,
+        show_archived: showArchived.value ? 1 : undefined,
+    };
+    
+    // Remove undefined values
+    Object.keys(params).forEach(key => {
+        if (params[key] === undefined) delete params[key];
+    });
+    
     router.get(
         route("subjects.index"),
-        { search: search.value || undefined },
+        params,
         { preserveState: true, replace: true, preserveScroll: true },
     );
 };
@@ -32,6 +43,27 @@ const archiveSubject = (id) => {
     if (confirm("Are you sure you want to archive this subject?")) {
         router.delete(route("subjects.destroy", id));
     }
+};
+
+const toggleArchived = () => {
+    const params = {
+        search: search.value || undefined,
+        show_archived: showArchived.value ? 1 : undefined,
+    };
+    
+    // Remove undefined values
+    Object.keys(params).forEach(key => {
+        if (params[key] === undefined) delete params[key];
+    });
+    
+    router.get(
+        route("subjects.index"),
+        params,
+        {
+            preserveState: true,
+            replace: true,
+        },
+    );
 };
 </script>
 
@@ -71,12 +103,25 @@ const archiveSubject = (id) => {
                                     Manage the master list of subjects.
                                 </p>
                             </div>
-                            <Link
-                                :href="route('subjects.create')"
-                                class="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
-                            >
-                                Create
-                            </Link>
+                            <div class="flex items-center gap-4">
+                                <label
+                                    class="inline-flex items-center gap-2 text-sm"
+                                >
+                                    <input
+                                        v-model="showArchived"
+                                        type="checkbox"
+                                        class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        @change="toggleArchived"
+                                    />
+                                    Show archived
+                                </label>
+                                <Link
+                                    :href="route('subjects.create')"
+                                    class="rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+                                >
+                                    Create
+                                </Link>
+                            </div>
                         </div>
 
                         <div
@@ -133,6 +178,11 @@ const archiveSubject = (id) => {
                                             Curriculums
                                         </th>
                                         <th
+                                            class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500"
+                                        >
+                                            Status
+                                        </th>
+                                        <th
                                             class="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500"
                                         >
                                             Actions
@@ -169,6 +219,22 @@ const archiveSubject = (id) => {
                                             }}
                                         </td>
                                         <td
+                                            class="whitespace-nowrap px-6 py-4 text-sm"
+                                        >
+                                            <span
+                                                v-if="!subject.is_active"
+                                                class="inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800"
+                                            >
+                                                Archived
+                                            </span>
+                                            <span
+                                                v-else
+                                                class="inline-flex rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800"
+                                            >
+                                                Active
+                                            </span>
+                                        </td>
+                                        <td
                                             class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium"
                                         >
                                             <div class="flex justify-end gap-3">
@@ -195,6 +261,7 @@ const archiveSubject = (id) => {
                                                     Edit
                                                 </Link>
                                                 <button
+                                                    v-if="subject.is_active"
                                                     type="button"
                                                     class="text-red-600 hover:text-red-900"
                                                     @click="
