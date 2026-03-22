@@ -35,7 +35,6 @@ const props = defineProps({
 
 const selectedType = ref(props.userType);
 const searchQuery = ref("");
-const isITAdmin = computed(() => props.currentUserRole === "it_admin");
 
 // Filter accounts based on search query
 const filteredAccounts = computed(() => {
@@ -188,7 +187,7 @@ const formatDate = (date) => {
 
                     <!-- Create Button -->
                     <Link
-                        v-if="isITAdmin && canCreate"
+                        v-if="canCreate"
                         :href="route('accounts.create', { type: selectedType })"
                         class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
@@ -325,12 +324,12 @@ const formatDate = (date) => {
                     </p>
                     <p class="mt-1 text-gray-600">
                         {{
-                            isITAdmin && canCreate
+                            canCreate
                                 ? "Create the first one to get started."
                                 : ""
                         }}
                     </p>
-                    <div v-if="isITAdmin && canCreate" class="mt-6">
+                    <div v-if="canCreate" class="mt-6">
                         <Link
                             :href="
                                 route('accounts.create', { type: selectedType })

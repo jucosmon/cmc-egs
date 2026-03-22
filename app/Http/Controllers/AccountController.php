@@ -59,8 +59,6 @@ class AccountController extends Controller
      */
     public function create(Request $request): Response
     {
-        Gate::authorize('manage-accounts');
-
         $type = $request->query('type', 'student');
         $user = Auth::user();
 
@@ -117,8 +115,6 @@ class AccountController extends Controller
      */
     public function store(Request $request): \Illuminate\Http\RedirectResponse
     {
-        Gate::authorize('manage-accounts');
-
         $type = $request->input('type', 'student');
         $user = Auth::user();
 
@@ -746,6 +742,32 @@ class AccountController extends Controller
             ];
         }
 
+        if ($user->role === 'dean') {
+            return [
+                ['name' => 'Program Head', 'value' => 'program_head'],
+                ['name' => 'Instructor', 'value' => 'instructor'],
+                ['name' => 'Student', 'value' => 'student'],
+            ];
+        }
+
+        if ($user->role === 'program_head') {
+            return [
+                ['name' => 'Student', 'value' => 'student'],
+            ];
+        }
+
+        if ($user->role === 'registrar') {
+            return [
+                ['name' => 'Student', 'value' => 'student'],
+            ];
+        }
+
+        if ($user->role === 'instructor') {
+            return [
+                ['name' => 'Student', 'value' => 'student'],
+            ];
+        }
+
         return [];
     }
 
@@ -754,8 +776,15 @@ class AccountController extends Controller
      */
     private function canCreateAccounts($user, $type): bool
     {
-        return $user->role === 'it_admin'
-            && in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student'], true);
+        if ($user->role === 'it_admin') {
+            return in_array($type, ['dean', 'program_head', 'registrar', 'instructor', 'student'], true);
+        }
+
+        if ($user->role === 'registrar') {
+            return $type === 'student';
+        }
+
+        return false;
     }
 
     /**

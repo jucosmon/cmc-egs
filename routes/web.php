@@ -159,9 +159,22 @@ Route::middleware('auth')->group(function () {
             ->name('enrollments.instructor-classes');
     });
 
-    // Accounts (IT Admin only)
+    // Accounts create/store (IT Admin, Registrar)
+    Route::middleware('role:it_admin,registrar')->group(function () {
+        Route::get('accounts/create', [AccountController::class, 'create'])
+            ->name('accounts.create');
+        Route::post('accounts', [AccountController::class, 'store'])
+            ->name('accounts.store');
+    });
+
+    // Accounts (read-only for IT Admin, Dean, Program Head, Registrar, Instructor)
+    Route::middleware('role:it_admin,dean,program_head,registrar,instructor')->group(function () {
+        Route::resource('accounts', AccountController::class)->only(['index', 'show']);
+    });
+
+    // Accounts edit/update/delete/reset (IT Admin only)
     Route::middleware('role:it_admin')->group(function () {
-        Route::resource('accounts', AccountController::class);
+        Route::resource('accounts', AccountController::class)->only(['edit', 'update', 'destroy']);
         Route::post('accounts/{account}/reset-password', [AccountController::class, 'resetPassword'])
             ->name('accounts.reset-password');
     });

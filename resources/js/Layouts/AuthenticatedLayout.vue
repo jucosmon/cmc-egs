@@ -61,7 +61,8 @@ const canAccessAccounts = computed(
         isITAdmin.value ||
         isDean.value ||
         isProgramHead.value ||
-        isRegistrar.value,
+        isRegistrar.value ||
+        isInstructor.value,
 );
 
 // Determine which user types are visible in the dropdown based on current user's role
@@ -129,6 +130,13 @@ const visibleUserTypes = computed(() => {
             params: { type: "student" },
         });
     } else if (isRegistrar.value) {
+        types.push({
+            name: "Student",
+            value: "student",
+            route: "accounts.index",
+            params: { type: "student" },
+        });
+    } else if (isInstructor.value) {
         types.push({
             name: "Student",
             value: "student",
