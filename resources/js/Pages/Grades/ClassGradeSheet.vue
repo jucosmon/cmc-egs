@@ -23,20 +23,31 @@ const isNumericGradeDisplay = (value) => {
 const getGradeBadgeClass = (value) => {
     const normalized = String(value || "").toUpperCase();
 
-    if (["INC", "INP", "INE", "IP", "IN PROGRESS"].includes(normalized)) {
+    // Incomplete - amber/warning color
+    if (["INC"].includes(normalized)) {
         return "bg-amber-100 text-amber-800";
     }
 
-    if (["DRP", "DROPPED", "W"].includes(normalized)) {
+    // Withdrawn, Dropped, Never Attended - muted/gray color
+    if (["DR", "W", "NA"].includes(normalized)) {
         return "bg-slate-100 text-slate-700";
     }
 
-    if (["UD", "FDA", "5", "5.0"].includes(normalized)) {
-        return "bg-rose-100 text-rose-800";
+    // No Grade - neutral
+    if (["NG"].includes(normalized)) {
+        return "bg-gray-100 text-gray-700";
     }
 
-    if (["P", "AU"].includes(normalized)) {
-        return "bg-emerald-100 text-emerald-800";
+    // Numeric grades
+    const numValue = Number(normalized);
+    if (!Number.isNaN(numValue) && numValue > 0) {
+        if (numValue <= 3.0) {
+            return "bg-emerald-100 text-emerald-800";
+        } else if (numValue <= 4.0) {
+            return "bg-yellow-100 text-yellow-800";
+        } else {
+            return "bg-rose-100 text-rose-800";
+        }
     }
 
     return "bg-gray-100 text-gray-700";

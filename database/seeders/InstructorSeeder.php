@@ -15,26 +15,17 @@ class InstructorSeeder extends Seeder
         $cbaId = Department::where('code', 'CBA')->value('id');
 
         $instructors = [
-            [
-                'email' => 'inst.it@cmc.edu.ph',
-                'department_id' => $coecsId,
-                'specialization' => 'Software Engineering',
-            ],
-            [
-                'email' => 'inst.cs@cmc.edu.ph',
-                'department_id' => $coecsId,
-                'specialization' => 'Data Structures and Algorithms',
-            ],
-            [
-                'email' => 'inst.ba@cmc.edu.ph',
-                'department_id' => $cbaId,
-                'specialization' => 'Business Management',
-            ],
-            [
-                'email' => 'inst.acc@cmc.edu.ph',
-                'department_id' => $cbaId,
-                'specialization' => 'Financial Accounting',
-            ],
+            // COECS Instructors
+            ['email' => 'inst.it1@cmc.edu.ph', 'department_id' => $coecsId, 'specialization' => 'Software Engineering & Web Development'],
+            ['email' => 'inst.it2@cmc.edu.ph', 'department_id' => $coecsId, 'specialization' => 'Mobile & Cloud Computing'],
+            ['email' => 'inst.cs1@cmc.edu.ph', 'department_id' => $coecsId, 'specialization' => 'Data Structures & Algorithms'],
+            ['email' => 'inst.cs2@cmc.edu.ph', 'department_id' => $coecsId, 'specialization' => 'Artificial Intelligence & Machine Learning'],
+
+            // CBA Instructors
+            ['email' => 'inst.ba1@cmc.edu.ph', 'department_id' => $cbaId, 'specialization' => 'Business Management & Entrepreneurship'],
+            ['email' => 'inst.ba2@cmc.edu.ph', 'department_id' => $cbaId, 'specialization' => 'Human Resource Management'],
+            ['email' => 'inst.acc1@cmc.edu.ph', 'department_id' => $cbaId, 'specialization' => 'Financial Accounting & Auditing'],
+            ['email' => 'inst.acc2@cmc.edu.ph', 'department_id' => $cbaId, 'specialization' => 'Taxation & Corporate Accounting'],
         ];
 
         foreach ($instructors as $instructor) {
@@ -53,3 +44,4 @@ class InstructorSeeder extends Seeder
         }
     }
 }
+

@@ -10,17 +10,18 @@ class EnrolledSubject extends Model
     use HasFactory;
 
     protected const DEFAULT_STATUS_GRADE_DISPLAY = [
-        'dropped' => 'DRP',
+        'dropped' => 'DR',
     ];
 
-    protected const EXCLUDED_FROM_GPA_CODES = ['INC', 'INP', 'DRP', 'W', 'P', 'AU'];
+    // All CMC codes are excluded from GPA calculation
+    protected const EXCLUDED_FROM_GPA_CODES = ['INC', 'DR', 'NA', 'W', 'NG'];
 
     protected const GPA_EQUIVALENT_CODES = [
-        'UD' => 5.0,
-        'FDA' => 5.0,
+        'NA' => 5.0,
+        'DR' => 5.0,
     ];
 
-    protected const COMPLETION_DEADLINE_CODES = ['INC', 'INP'];
+    protected const COMPLETION_DEADLINE_CODES = ['INC'];
 
     protected $fillable = [
         'status',

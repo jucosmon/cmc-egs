@@ -12,13 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('enrolled_subjects', function (Blueprint $table) {
-            // CMC Grade Codes: DR=Dropped, NA=Never Attended, INC=Incomplete, W=Withdrawn, NG=No Grade
+            // Update enum to only CMC-specific codes
+            // DR - Dropped, NA - Never Attended, INC - Incomplete, W - Withdrawn, NG - No Grade
             $table->enum('final_grade_code', ['DR', 'NA', 'INC', 'W', 'NG'])
                 ->nullable()
-                ->after('final_grade');
-            $table->date('completion_due_at')
-                ->nullable()
-                ->after('final_grade_code');
+                ->change();
         });
     }
 
@@ -28,7 +26,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('enrolled_subjects', function (Blueprint $table) {
-            $table->dropColumn(['final_grade_code', 'completion_due_at']);
+            // Revert to previous enum values if needed
+            $table->enum('final_grade_code', ['INC', 'INP', 'DRP', 'W', 'UD', 'FDA', 'P', 'AU'])
+                ->nullable()
+                ->change();
         });
     }
 };

@@ -18,6 +18,9 @@ class EnrolledSubjectSeeder extends Seeder
     {
         $enrollments = Enrollment::all();
         $gradeSteps = [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75, 3.0];
+        // CMC special codes for some subjects (Incomplete, Withdrawn, Never Attended, Dropped)
+        $specialCodes = ['INC', 'W', 'NA', 'DR', 'NG'];
+        $specialCodeIndex = 0;
 
         foreach ($enrollments as $enrollment) {
             $scheduledSubjects = ScheduledSubject::where('academic_term_id', $enrollment->academic_term_id)
@@ -30,10 +33,19 @@ class EnrolledSubjectSeeder extends Seeder
                 $status = $enrollment->status === 'completed' ? 'completed' : 'enrolled';
                 $finalGrade = null;
                 $midtermGrade = null;
+                $finalGradeCode = null;
 
                 if ($status === 'completed') {
-                    $finalGrade = $gradeSteps[$gradeIndex % count($gradeSteps)];
-                    $midtermGrade = min(3.0, $finalGrade + 0.25);
+                    // Use numeric grades for most subjects
+                    if ($gradeIndex % 7 !== 0) { // 6 out of 7 get numeric grades
+                        $finalGrade = $gradeSteps[$gradeIndex % count($gradeSteps)];
+                        $midtermGrade = min(3.0, $finalGrade + 0.25);
+                    } else {
+                        // 1 out of 7 gets a special code instead
+                        $finalGradeCode = $specialCodes[$specialCodeIndex % count($specialCodes)];
+                        $midtermGrade = 2.5; // Some midterm grade even with code
+                        $specialCodeIndex++;
+                    }
                     $gradeIndex++;
                 }
 
@@ -41,6 +53,7 @@ class EnrolledSubjectSeeder extends Seeder
                     'status' => $status,
                     'midterm_grade' => $midtermGrade,
                     'final_grade' => $finalGrade,
+                    'final_grade_code' => $finalGradeCode,
                     'enrollment_id' => $enrollment->id,
                     'scheduled_subject_id' => $scheduledSubject->id,
                 ]);
@@ -60,9 +73,11 @@ class EnrolledSubjectSeeder extends Seeder
                 $failedSubject = EnrolledSubject::where('enrollment_id', $completedEnrollment->id)->first();
 
                 if ($failedSubject) {
+                    // Mark as never attended (NA) instead of numeric fail
                     $failedSubject->update([
-                        'midterm_grade' => 4.0,
-                        'final_grade' => 5.0,
+                        'midterm_grade' => null,
+                        'final_grade' => null,
+                        'final_grade_code' => 'NA',
                         'status' => 'completed',
                     ]);
                 }

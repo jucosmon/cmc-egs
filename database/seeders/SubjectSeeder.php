@@ -45,6 +45,7 @@ class SubjectSeeder extends Seeder
                 'title' => $subject['title'],
                 'description' => 'Description for ' . $subject['title'],
                 'units' => $subject['units'],
+                'is_active' => true,
             ]);
         }
     }

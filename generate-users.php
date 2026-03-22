@@ -1,4 +1,12 @@
 <?php
+/**
+ * Comprehensive UserSeeder Generator with all staff and students
+ * Includes: 2 admin, 2 deans, 4 pg heads, 8 instructors, 32 students
+ */
+$seedersPath = __DIR__ . '/database/seeders';
+
+$userSeederContent = <<<'PHP'
+<?php
 
 namespace Database\Seeders;
 
@@ -413,3 +421,20 @@ class UserSeeder extends Seeder
         }
     }
 }
+PHP;
+
+// Write the file
+file_put_contents($seedersPath . '/UserSeeder.php', $userSeederContent);
+echo "✅ UserSeeder successfully generated with:\n";
+echo "   - 2 Administrative users (Admin, Registrar)\n";
+echo "   - 2 Deans (COECS, CBA)\n";
+echo "   - 4 Program Heads (BSIT, BSCS, BSBA, BSA)\n";
+echo "   - 8 Instructors (4 COECS, 4 CBA)\n";
+echo "   - 32 Students (8 per program, 4 per block)\n";
+echo "   Total: 48 users with complete data including:\n";
+echo "   ✓ Personal emails\n";
+echo "   ✓ Formatted phone numbers\n";
+echo "   ✓ Complete address with PSGC codes\n";
+echo "   ✓ Avatars (DiceBear API)\n";
+echo "   ✓ All fields for testing\n\n";
+?>

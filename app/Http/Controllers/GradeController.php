@@ -15,14 +15,15 @@ use Inertia\Inertia;
 
 class GradeController extends Controller
 {
-    private const FINAL_GRADE_CODES = ['INC', 'INP', 'DRP', 'W', 'UD', 'FDA', 'P', 'AU'];
+    // CMC Grade Codes: DR=Dropped, NA=Never Attended, INC=Incomplete, W=Withdrawn, NG=No Grade
+    private const FINAL_GRADE_CODES = ['DR', 'NA', 'INC', 'W', 'NG'];
 
     private const GPA_EQUIVALENT_CODES = [
-        'UD' => 5.0,
-        'FDA' => 5.0,
+        'NA' => 5.0,
+        'DR' => 5.0,
     ];
 
-    private const COMPLETION_DEADLINE_CODES = ['INC', 'INP'];
+    private const COMPLETION_DEADLINE_CODES = ['INC'];
 
     public function index(Request $request)
     {

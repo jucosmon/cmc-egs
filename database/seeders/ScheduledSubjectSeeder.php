@@ -20,12 +20,18 @@ class ScheduledSubjectSeeder extends Seeder
         $blocks = Block::with('program')->get();
         $instructorsByDepartment = Instructor::all()->groupBy('department_id');
 
-        $days = ['Monday', 'Wednesday', 'Friday'];
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
         $timeSlots = [
-            ['08:00:00', '09:30:00'],
+            ['07:00:00', '08:30:00'],
+            ['08:30:00', '10:00:00'],
             ['10:00:00', '11:30:00'],
+            ['11:30:00', '13:00:00'],
             ['13:00:00', '14:30:00'],
+            ['14:30:00', '16:00:00'],
+            ['16:00:00', '17:30:00'],
         ];
+
+        $slotIndex = 0;
 
         foreach ($blocks as $block) {
             $programCode = $block->program->code;
@@ -47,20 +53,17 @@ class ScheduledSubjectSeeder extends Seeder
                     $query->where('code', $programCode);
                 })
                     ->where('semester', $semester)
+                    ->with('subject')
                     ->orderBy('id')
-                    ->take(3)
                     ->get();
 
-                $slotIndex = 0;
-
-                foreach ($subjects as $subject) {
+                foreach ($subjects as $idx => $subject) {
                     $timeSlot = $timeSlots[$slotIndex % count($timeSlots)];
-                    $day = $days[$slotIndex % count($days)];
+                    $day = $days[$idx % count($days)];
                     $instructor = $departmentInstructors[$slotIndex % $departmentInstructors->count()];
-
                     $slotIndex++;
 
-                    $roomNumber = 100 + $block->id;
+                    $roomNumber = 100 + $block->id + (ord($day[0]) % 5);
 
                     ScheduledSubject::create([
                         'day' => $day,

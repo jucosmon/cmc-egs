@@ -19,6 +19,7 @@ class BlockSeeder extends Seeder
                     'admission_year' => 2025,
                     'status' => 'active',
                     'program_id' => $program->id,
+                    'max_students' => 45,
                 ]);
             }
         }
