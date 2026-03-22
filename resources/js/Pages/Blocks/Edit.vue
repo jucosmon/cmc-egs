@@ -12,6 +12,7 @@ const form = useForm({
     program_id: props.block.program_id,
     admission_year: props.block.admission_year,
     status: props.block.status,
+    max_students: props.block.max_students ?? 50,
 });
 
 const submit = () => {
@@ -141,6 +142,32 @@ const submit = () => {
                                     class="text-red-600 text-sm mt-1"
                                 >
                                     {{ form.errors.status }}
+                                </p>
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                >
+                                    Max Students *
+                                </label>
+                                <input
+                                    v-model.number="form.max_students"
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <p class="text-xs text-gray-500 mt-1">
+                                    Capacity per block. Allowed range is 1 to 50
+                                    students.
+                                </p>
+                                <p
+                                    v-if="form.errors.max_students"
+                                    class="text-red-600 text-sm mt-1"
+                                >
+                                    {{ form.errors.max_students }}
                                 </p>
                             </div>
 

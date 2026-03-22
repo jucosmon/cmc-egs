@@ -160,6 +160,16 @@ const programBlocks = computed(() => {
     );
 });
 
+const blockCapacity = (block) => Number(block.max_students ?? 50);
+const blockOccupancy = (block) => Number(block.students_count ?? 0);
+const isBlockFull = (block) => blockOccupancy(block) >= blockCapacity(block);
+const isCurrentBlock = (block) => String(block.id) === String(form.block_id);
+const canSelectBlock = (block) => !isBlockFull(block) || isCurrentBlock(block);
+
+const hasSelectableBlock = computed(() =>
+    programBlocks.value.some((block) => canSelectBlock(block)),
+);
+
 watch(
     () => form.department_id,
     () => {
@@ -188,12 +198,24 @@ watch(
         } else if (
             form.block_id &&
             !programBlocks.value.find(
-                (block) => String(block.id) === String(form.block_id),
+                (block) =>
+                    String(block.id) === String(form.block_id) &&
+                    canSelectBlock(block),
             )
         ) {
-            form.block_id = String(programBlocks.value[0].id);
+            const firstSelectableBlock = programBlocks.value.find((block) =>
+                canSelectBlock(block),
+            );
+            form.block_id = firstSelectableBlock
+                ? String(firstSelectableBlock.id)
+                : "";
         } else if (!form.block_id && programBlocks.value.length) {
-            form.block_id = String(programBlocks.value[0].id);
+            const firstSelectableBlock = programBlocks.value.find((block) =>
+                canSelectBlock(block),
+            );
+            form.block_id = firstSelectableBlock
+                ? String(firstSelectableBlock.id)
+                : "";
         }
     },
 );
@@ -716,7 +738,7 @@ const getRoleLabel = (role) => {
                                 </label>
                                 <select
                                     v-model="form.block_id"
-                                    :disabled="!programBlocks.length"
+                                    :disabled="!hasSelectableBlock"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 >
                                     <option value="">Select block...</option>
@@ -724,8 +746,14 @@ const getRoleLabel = (role) => {
                                         v-for="block in programBlocks"
                                         :key="block.id"
                                         :value="block.id"
+                                        :disabled="
+                                            isBlockFull(block) &&
+                                            !isCurrentBlock(block)
+                                        "
                                     >
-                                        {{ block.code }}
+                                        {{
+                                            `${block.code} (${block.admission_year}) - ${blockOccupancy(block)}/${blockCapacity(block)}${isBlockFull(block) ? " (Full)" : ""}`
+                                        }}
                                     </option>
                                 </select>
                                 <p
@@ -741,6 +769,14 @@ const getRoleLabel = (role) => {
                                     class="mt-1 text-sm text-gray-500"
                                 >
                                     Select a program first to load blocks.
+                                </p>
+                                <p
+                                    v-else-if="
+                                        form.program_id && !hasSelectableBlock
+                                    "
+                                    class="mt-1 text-sm text-amber-600"
+                                >
+                                    All blocks in this program are full.
                                 </p>
                             </div>
                         </div>

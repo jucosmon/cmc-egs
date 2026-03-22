@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class StudentController extends Controller
@@ -64,7 +65,10 @@ class StudentController extends Controller
     public function create()
     {
         $programs = Program::active()->select('id', 'name', 'code')->get();
-        $blocks = Block::active()->with('program')->get();
+        $blocks = Block::active()
+            ->with('program')
+            ->withCount('students')
+            ->get(['id', 'code', 'program_id', 'admission_year', 'status', 'max_students']);
 
         return Inertia::render('Students/Create', [
             'programs' => $programs,
@@ -93,6 +97,14 @@ class StudentController extends Controller
             'block_id' => 'nullable|exists:blocks,id',
         ]);
 
+        $resolvedBlockId = null;
+        if (!empty($validated['block_id'])) {
+            $resolvedBlockId = $this->resolveStudentBlock(
+                (int) $validated['program_id'],
+                (int) $validated['block_id']
+            )->id;
+        }
+
         // Create user first
         $user = User::create([
             'email' => $validated['email'],
@@ -113,7 +125,7 @@ class StudentController extends Controller
         Student::create([
             'user_id' => $user->id,
             'program_id' => $validated['program_id'],
-            'block_id' => $validated['block_id'] ?? null,
+            'block_id' => $resolvedBlockId,
             'year_level' => $validated['year_level'],
             'status' => $validated['status'],
         ]);
@@ -147,7 +159,10 @@ class StudentController extends Controller
         $student->load('user');
 
         $programs = Program::active()->select('id', 'name', 'code')->get();
-        $blocks = Block::active()->with('program')->get();
+        $blocks = Block::active()
+            ->with('program')
+            ->withCount('students')
+            ->get(['id', 'code', 'program_id', 'admission_year', 'status', 'max_students']);
 
         return Inertia::render('Students/Edit', [
             'student' => $student,
@@ -177,6 +192,15 @@ class StudentController extends Controller
             'block_id' => 'nullable|exists:blocks,id',
         ]);
 
+        $resolvedBlockId = null;
+        if (!empty($validated['block_id'])) {
+            $resolvedBlockId = $this->resolveStudentBlock(
+                (int) $validated['program_id'],
+                (int) $validated['block_id'],
+                $student->id
+            )->id;
+        }
+
         // Update user
         $student->user->update([
             'email' => $validated['email'],
@@ -193,7 +217,7 @@ class StudentController extends Controller
         // Update student
         $student->update([
             'program_id' => $validated['program_id'],
-            'block_id' => $validated['block_id'] ?? null,
+            'block_id' => $resolvedBlockId,
             'year_level' => $validated['year_level'],
             'status' => $validated['status'],
         ]);
@@ -219,5 +243,34 @@ class StudentController extends Controller
 
         return redirect()->route('students.index')
             ->with('success', 'Student account archived successfully.');
+    }
+
+    private function resolveStudentBlock(int $programId, int $blockId, ?int $ignoreStudentId = null): Block
+    {
+        $block = Block::where('id', $blockId)
+            ->where('program_id', $programId)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$block) {
+            throw ValidationException::withMessages([
+                'block_id' => 'Selected block is invalid for the selected program.',
+            ]);
+        }
+
+        $maxStudents = (int) ($block->max_students ?? 50);
+        $assignedCount = $block->students()
+            ->when($ignoreStudentId, function ($query, $ignoreStudentId) {
+                $query->where('id', '!=', $ignoreStudentId);
+            })
+            ->count();
+
+        if ($assignedCount >= $maxStudents) {
+            throw ValidationException::withMessages([
+                'block_id' => "Block {$block->code} is already full ({$maxStudents}/{$maxStudents}).",
+            ]);
+        }
+
+        return $block;
     }
 }

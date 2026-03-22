@@ -96,9 +96,10 @@ class AccountController extends Controller
                     $query->whereIn('program_id', $programIds);
                 })
                 ->where('status', 'active')
+                ->withCount('students')
                 ->orderByDesc('admission_year')
                 ->orderBy('code')
-                ->get(['id', 'code', 'admission_year', 'program_id', 'status']);
+                ->get(['id', 'code', 'admission_year', 'program_id', 'status', 'max_students']);
         }
 
         return Inertia::render('Accounts/Create', [
@@ -412,9 +413,10 @@ class AccountController extends Controller
                 ->when(!count($programIds) && $assignedBlockId, function ($query) use ($assignedBlockId) {
                     $query->where('id', $assignedBlockId);
                 })
+                ->withCount('students')
                 ->orderByDesc('admission_year')
                 ->orderBy('code')
-                ->get(['id', 'code', 'admission_year', 'program_id', 'status']);
+                ->get(['id', 'code', 'admission_year', 'program_id', 'status', 'max_students']);
         }
 
         // Expose the account's program/dept explicitly to the Inertia view to avoid
@@ -499,7 +501,8 @@ class AccountController extends Controller
             $student = $account->student;
             $resolvedBlock = $this->resolveStudentBlockForUpdate(
                 (int) $validated['program_id'],
-                (int) $validated['block_id']
+                (int) $validated['block_id'],
+                $student?->id
             );
             if ($student) {
                 $student->update([
@@ -876,6 +879,7 @@ class AccountController extends Controller
     {
         $block = Block::where('id', $blockId)
             ->where('program_id', $programId)
+            ->where('status', 'active')
             ->first();
 
         if (!$block) {
@@ -894,10 +898,12 @@ class AccountController extends Controller
             ]);
         }
 
+        $this->ensureBlockHasAvailableSlot($block);
+
         return $block;
     }
 
-    private function resolveStudentBlockForUpdate(int $programId, int $blockId): Block
+    private function resolveStudentBlockForUpdate(int $programId, int $blockId, ?int $currentStudentId = null): Block
     {
         $block = Block::where('id', $blockId)
             ->where('program_id', $programId)
@@ -909,6 +915,25 @@ class AccountController extends Controller
             ]);
         }
 
+        $this->ensureBlockHasAvailableSlot($block, $currentStudentId);
+
         return $block;
+    }
+
+    private function ensureBlockHasAvailableSlot(Block $block, ?int $ignoreStudentId = null): void
+    {
+        $maxStudents = (int) ($block->max_students ?? 50);
+
+        $assignedCount = $block->students()
+            ->when($ignoreStudentId, function ($query, $ignoreStudentId) {
+                $query->where('id', '!=', $ignoreStudentId);
+            })
+            ->count();
+
+        if ($assignedCount >= $maxStudents) {
+            throw ValidationException::withMessages([
+                'block_id' => "Block {$block->code} is already full ({$maxStudents}/{$maxStudents}).",
+            ]);
+        }
     }
 }

@@ -99,6 +99,7 @@ class BlockController extends Controller
             'code' => 'nullable|string|max:20|unique:blocks,code',
             'program_id' => 'required|exists:programs,id',
             'admission_year' => 'required|integer|min:2000|max:' . (date('Y') + 1),
+            'max_students' => 'nullable|integer|min:1|max:50',
         ]);
 
         if ($user->role === 'program_head') {
@@ -119,6 +120,7 @@ class BlockController extends Controller
             (int) $validated['admission_year']
         );
         $validated['status'] = 'active';
+        $validated['max_students'] = (int) ($validated['max_students'] ?? 50);
 
         Block::create($validated);
 
@@ -205,6 +207,7 @@ class BlockController extends Controller
         $validated = $request->validate([
             'admission_year' => 'required|integer',
             'status' => 'required|in:active,inactive,graduated',
+            'max_students' => 'required|integer|min:1|max:50',
         ]);
 
         if ((int) $validated['admission_year'] !== (int) $block->admission_year) {

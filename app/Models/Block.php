@@ -15,10 +15,12 @@ class Block extends Model
         'admission_year',
         'status',
         'program_id',
+        'max_students',
     ];
 
     protected $casts = [
         'admission_year' => 'integer',
+        'max_students' => 'integer',
     ];
 
     // Relationships

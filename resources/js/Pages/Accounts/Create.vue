@@ -87,11 +87,23 @@ const availableBlocks = computed(() => {
     );
 });
 
+const blockCapacity = (block) => Number(block.max_students ?? 50);
+const blockOccupancy = (block) => Number(block.students_count ?? 0);
+const isBlockFull = (block) => blockOccupancy(block) >= blockCapacity(block);
+
+const hasOpenBlock = computed(() =>
+    availableBlocks.value.some((block) => !isBlockFull(block)),
+);
+
 watch(
     () => form.program_id,
     () => {
-        if (availableBlocks.value.length) {
-            form.block_id = String(availableBlocks.value[0].id);
+        const firstOpenBlock = availableBlocks.value.find(
+            (block) => !isBlockFull(block),
+        );
+
+        if (firstOpenBlock) {
+            form.block_id = String(firstOpenBlock.id);
         } else {
             form.block_id = "";
         }
@@ -497,6 +509,7 @@ const getRoleLabel = (role) => {
                                 </label>
                                 <select
                                     v-model="form.block_id"
+                                    :disabled="!hasOpenBlock"
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                 >
                                     <option value="">Select block...</option>
@@ -504,10 +517,11 @@ const getRoleLabel = (role) => {
                                         v-for="block in availableBlocks"
                                         :key="block.id"
                                         :value="block.id"
+                                        :disabled="isBlockFull(block)"
                                     >
-                                        {{ block.code }} ({{
-                                            block.admission_year
-                                        }})
+                                        {{
+                                            `${block.code} (${block.admission_year}) - ${blockOccupancy(block)}/${blockCapacity(block)}${isBlockFull(block) ? " (Full)" : ""}`
+                                        }}
                                     </option>
                                 </select>
                                 <p
@@ -519,6 +533,14 @@ const getRoleLabel = (role) => {
                                 >
                                     No active blocks found for the latest
                                     admission year.
+                                </p>
+                                <p
+                                    v-else-if="form.program_id && !hasOpenBlock"
+                                    class="mt-1 text-sm text-amber-600"
+                                >
+                                    All latest-year blocks are full. Please
+                                    create another block or increase block
+                                    capacity.
                                 </p>
                             </div>
                         </div>
