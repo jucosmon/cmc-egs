@@ -1,4 +1,5 @@
 <script setup>
+import PsgcAddress from "@/Components/PsgcAddress.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 import { computed, watch } from "vue";
@@ -47,6 +48,12 @@ const form = useForm({
     official_id: "",
     phone: "",
     address: "",
+    province_code: "",
+    province_name: "",
+    city_code: "",
+    city_name: "",
+    barangay_code: "",
+    barangay_name: "",
     date_of_birth: "",
     sex: "",
     department_id: "",
@@ -111,11 +118,36 @@ watch(
 );
 
 const submit = () => {
+    const addressParts = [
+        form.barangay_name,
+        form.city_name,
+        form.province_name,
+    ].filter(Boolean);
+    if (addressParts.length > 0) {
+        form.address = addressParts.join(", ");
+    }
+
     form.post(route("accounts.store"), {
         onSuccess: () => {
             form.reset();
         },
     });
+};
+
+const applyPsgcAddress = (data) => {
+    form.province_code = data.province_code;
+    form.province_name = data.province_name;
+    form.city_code = data.city_code;
+    form.city_name = data.city_name;
+    form.barangay_code = data.barangay_code;
+    form.barangay_name = data.barangay_name;
+
+    const parts = [
+        data.barangay_name,
+        data.city_name,
+        data.province_name,
+    ].filter(Boolean);
+    form.address = parts.join(", ");
 };
 
 const getRoleLabel = (role) => {
@@ -382,18 +414,39 @@ const getRoleLabel = (role) => {
                             </select>
                         </div>
 
-                        <!-- Address -->
+                        <!-- Address with PSGC Cascading Dropdowns -->
+                        <PsgcAddress
+                            :model-value="{
+                                province_code: form.province_code,
+                                province_name: form.province_name,
+                                city_code: form.city_code,
+                                city_name: form.city_name,
+                                barangay_code: form.barangay_code,
+                                barangay_name: form.barangay_name,
+                            }"
+                            :label="'Address'"
+                            :required="false"
+                            :error="
+                                form.errors.province_code ||
+                                form.errors.city_code ||
+                                form.errors.barangay_code
+                            "
+                            @change="applyPsgcAddress"
+                        />
+
+                        <!-- Generated full address -->
                         <div>
                             <label
                                 for="address"
                                 class="block text-sm font-medium text-gray-700"
                             >
-                                Address
+                                Generated Address
                             </label>
-                            <textarea
+                            <input
                                 id="address"
                                 v-model="form.address"
-                                rows="3"
+                                type="text"
+                                readonly
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>

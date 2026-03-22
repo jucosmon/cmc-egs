@@ -137,6 +137,12 @@ class AccountController extends Controller
             'official_id' => 'nullable|unique:users',
             'phone' => 'nullable|string',
             'address' => 'nullable|string',
+            'province_code' => 'nullable|string|max:10',
+            'province_name' => 'nullable|string|max:100',
+            'city_code' => 'nullable|string|max:10',
+            'city_name' => 'nullable|string|max:100',
+            'barangay_code' => 'nullable|string|max:10',
+            'barangay_name' => 'nullable|string|max:100',
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
             'department_id' => 'nullable|exists:departments,id',
@@ -193,8 +199,9 @@ class AccountController extends Controller
 
         // Generate default password
         $defaultPassword = str_pad(random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $fullAddress = $this->buildAddressFromPsgc($validated);
 
-        $newUser = DB::transaction(function () use ($validated, $type, $defaultPassword, $selectedBlock) {
+        $newUser = DB::transaction(function () use ($validated, $type, $defaultPassword, $selectedBlock, $fullAddress) {
             $user = User::create([
                 'email' => $validated['email'],
                 'personal_email' => $validated['personal_email'],
@@ -203,7 +210,13 @@ class AccountController extends Controller
                 'last_name' => $validated['last_name'],
                 'official_id' => $validated['official_id'] ?? null,
                 'phone' => $validated['phone'] ?? null,
-                'address' => $validated['address'] ?? null,
+                'address' => $fullAddress,
+                'province_code' => $validated['province_code'] ?? null,
+                'province_name' => $validated['province_name'] ?? null,
+                'city_code' => $validated['city_code'] ?? null,
+                'city_name' => $validated['city_name'] ?? null,
+                'barangay_code' => $validated['barangay_code'] ?? null,
+                'barangay_name' => $validated['barangay_name'] ?? null,
                 'date_of_birth' => $validated['date_of_birth'] ?? null,
                 'sex' => $validated['sex'] ?? null,
                 'role' => $type,
@@ -464,6 +477,12 @@ class AccountController extends Controller
             'official_id' => 'nullable|unique:users,official_id,' . $account->id,
             'phone' => 'nullable|string',
             'address' => 'nullable|string',
+            'province_code' => 'nullable|string|max:10',
+            'province_name' => 'nullable|string|max:100',
+            'city_code' => 'nullable|string|max:10',
+            'city_name' => 'nullable|string|max:100',
+            'barangay_code' => 'nullable|string|max:10',
+            'barangay_name' => 'nullable|string|max:100',
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
             'avatar' => 'nullable|image|mimes:jpg,png|max:2048',
@@ -479,10 +498,28 @@ class AccountController extends Controller
         }
 
         $validated = $request->validate($rules);
+        $validated['address'] = $this->buildAddressFromPsgc($validated);
 
         // Update base user fields
         $account->update(array_filter($validated, function ($k) {
-            return in_array($k, ['email', 'personal_email', 'first_name', 'middle_name', 'last_name', 'official_id', 'phone', 'address', 'date_of_birth', 'sex']);
+            return in_array($k, [
+                'email',
+                'personal_email',
+                'first_name',
+                'middle_name',
+                'last_name',
+                'official_id',
+                'phone',
+                'address',
+                'province_code',
+                'province_name',
+                'city_code',
+                'city_name',
+                'barangay_code',
+                'barangay_name',
+                'date_of_birth',
+                'sex'
+            ]);
         }, ARRAY_FILTER_USE_KEY));
 
         if ($request->hasFile('avatar')) {
@@ -935,5 +972,20 @@ class AccountController extends Controller
                 'block_id' => "Block {$block->code} is already full ({$maxStudents}/{$maxStudents}).",
             ]);
         }
+    }
+
+    private function buildAddressFromPsgc(array $validated): ?string
+    {
+        $addressParts = array_filter([
+            $validated['barangay_name'] ?? null,
+            $validated['city_name'] ?? null,
+            $validated['province_name'] ?? null,
+        ]);
+
+        if (!empty($addressParts)) {
+            return implode(', ', $addressParts);
+        }
+
+        return $validated['address'] ?? null;
     }
 }

@@ -95,6 +95,20 @@ const getRoleLabel = (role) => {
     };
     return labels[role] || role;
 };
+
+const getDisplayAddress = (account) => {
+    const psgcParts = [
+        account?.barangay_name,
+        account?.city_name,
+        account?.province_name,
+    ].filter(Boolean);
+
+    if (psgcParts.length > 0) {
+        return psgcParts.join(", ");
+    }
+
+    return account?.address || "N/A";
+};
 </script>
 
 <template>
@@ -290,7 +304,7 @@ const getRoleLabel = (role) => {
                                     Address
                                 </dt>
                                 <dd class="mt-1 text-sm text-gray-900">
-                                    {{ account.address || "N/A" }}
+                                    {{ getDisplayAddress(account) }}
                                 </dd>
                             </div>
                         </dl>
