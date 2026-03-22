@@ -4,7 +4,7 @@ import { Head, Link, useForm } from "@inertiajs/vue3";
 
 const props = defineProps({
     department: Object,
-    deans: Array,
+    availableDeans: Array,
 });
 
 const form = useForm({
@@ -103,7 +103,7 @@ const submit = () => {
                                         No dean assigned
                                     </option>
                                     <option
-                                        v-for="dean in deans"
+                                        v-for="dean in availableDeans"
                                         :key="dean.id"
                                         :value="dean.id"
                                     >

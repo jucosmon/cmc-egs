@@ -35,9 +35,10 @@ class DepartmentController extends Controller
 
     public function create()
     {
-        // Get all users with dean role for the dropdown
-        $deans = User::where('role', 'dean')
+        // Get all deans NOT already assigned to other departments
+        $availableDeans = User::where('role', 'dean')
             ->where('is_active', true)
+            ->whereNotIn('id', Department::whereNotNull('dean_id')->pluck('dean_id'))
             ->select('id', 'first_name', 'last_name', 'official_id')
             ->get()
             ->map(function ($user) {
@@ -49,7 +50,7 @@ class DepartmentController extends Controller
             });
 
         return Inertia::render('Departments/Create', [
-            'deans' => $deans,
+            'availableDeans' => $availableDeans,
         ]);
     }
 
@@ -101,8 +102,15 @@ class DepartmentController extends Controller
 
     public function edit(Department $department)
     {
-        $deans = User::where('role', 'dean')
+        // Get all deans NOT already assigned to other departments
+        // But allow the current department's dean to remain selectable
+        $availableDeans = User::where('role', 'dean')
             ->where('is_active', true)
+            ->whereNotIn('id',
+                Department::whereNotNull('dean_id')
+                    ->where('id', '!=', $department->id)
+                    ->pluck('dean_id')
+            )
             ->select('id', 'first_name', 'last_name', 'official_id')
             ->get()
             ->map(function ($user) {
@@ -115,7 +123,7 @@ class DepartmentController extends Controller
 
         return Inertia::render('Departments/Edit', [
             'department' => $department,
-            'deans' => $deans,
+            'availableDeans' => $availableDeans,
         ]);
     }
 
