@@ -112,8 +112,15 @@ const getFullNameWithMiddleInitial = () => {
                     >
                         <div class="h-20 w-20 flex-shrink-0">
                             <img
-                                :src="props.account.avatar_url"
+                                :src="
+                                    props.account.avatar_url ||
+                                    '/images/default-avatar.svg'
+                                "
                                 :alt="`Avatar for ${props.account.full_name}`"
+                                @error="
+                                    $event.target.src =
+                                        '/images/default-avatar.svg'
+                                "
                                 class="h-20 w-20 rounded-full object-cover"
                             />
                         </div>
