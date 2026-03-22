@@ -244,8 +244,15 @@ const formatDate = (date) => {
                                 <td class="whitespace-nowrap px-6 py-4">
                                     <div class="flex items-center gap-3">
                                         <img
-                                            :src="account.avatar_url"
-                                            alt="Account avatar"
+                                            :src="
+                                                account.avatar_url ||
+                                                '/images/default-avatar.svg'
+                                            "
+                                            :alt="`Avatar for ${account.full_name}`"
+                                            @error="
+                                                $event.target.src =
+                                                    '/images/default-avatar.svg'
+                                            "
                                             class="h-10 w-10 rounded-full object-cover"
                                         />
                                         <div

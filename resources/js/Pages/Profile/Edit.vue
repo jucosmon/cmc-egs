@@ -113,7 +113,7 @@ const getFullNameWithMiddleInitial = () => {
                         <div class="h-20 w-20 flex-shrink-0">
                             <img
                                 :src="props.account.avatar_url"
-                                alt="Profile avatar"
+                                :alt="`Avatar for ${props.account.full_name}`"
                                 class="h-20 w-20 rounded-full object-cover"
                             />
                         </div>

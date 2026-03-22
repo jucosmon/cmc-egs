@@ -186,8 +186,15 @@ const formatPhone = (phone) => {
                     <div class="flex items-center">
                         <div class="h-20 w-20 flex-shrink-0">
                             <img
-                                :src="account.avatar_url"
-                                alt="Account avatar"
+                                :src="
+                                    account.avatar_url ||
+                                    '/images/default-avatar.svg'
+                                "
+                                :alt="`Avatar for ${account.full_name}`"
+                                @error="
+                                    $event.target.src =
+                                        '/images/default-avatar.svg'
+                                "
                                 class="h-20 w-20 rounded-full object-cover"
                             />
                         </div>
