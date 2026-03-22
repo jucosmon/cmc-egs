@@ -19,6 +19,7 @@ const props = defineProps({
 
 const activePeriod = ref(null);
 const showConfirm = ref(false);
+const finalGradeCodes = ["INC", "INP", "DRP", "W", "UD", "FDA", "P", "AU"];
 
 const form = useForm({
     grade_type: "",
@@ -45,6 +46,7 @@ const startEditing = (period) => {
     form.grades = enrolledStudents.value.map((item) => ({
         enrolled_subject_id: item.id,
         grade: period === "midterm" ? item.midterm_grade : item.final_grade,
+        grade_code: period === "final" ? (item.final_grade_code ?? "") : "",
     }));
     form.clearErrors();
 };
@@ -70,6 +72,42 @@ const submitGrades = () => {
             showConfirm.value = false;
         },
     });
+};
+
+const getGradeDisplay = (subject, period) => {
+    const displayKey = `${period}_grade_display`;
+    const rawKey = `${period}_grade`;
+    return subject?.[displayKey] ?? subject?.[rawKey] ?? "-";
+};
+
+const isNumericGradeDisplay = (value) => {
+    if (value === null || value === undefined || value === "") {
+        return false;
+    }
+
+    return !Number.isNaN(Number(value));
+};
+
+const getGradeBadgeClass = (value) => {
+    const normalized = String(value || "").toUpperCase();
+
+    if (["INC", "INP", "INE", "IP", "IN PROGRESS"].includes(normalized)) {
+        return "bg-amber-100 text-amber-800";
+    }
+
+    if (["DRP", "DROPPED", "W"].includes(normalized)) {
+        return "bg-slate-100 text-slate-700";
+    }
+
+    if (["UD", "FDA", "5", "5.0"].includes(normalized)) {
+        return "bg-rose-100 text-rose-800";
+    }
+
+    if (["P", "AU"].includes(normalized)) {
+        return "bg-emerald-100 text-emerald-800";
+    }
+
+    return "bg-gray-100 text-gray-700";
 };
 </script>
 
@@ -254,8 +292,8 @@ const submitGrades = () => {
                                                         form.grades[index].grade
                                                     "
                                                     type="number"
-                                                    min="0"
-                                                    max="100"
+                                                    min="1"
+                                                    max="5"
                                                     step="0.01"
                                                     class="w-24 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                 />
@@ -269,7 +307,42 @@ const submitGrades = () => {
                                                 />
                                             </div>
                                             <span v-else>
-                                                {{ item.midterm_grade ?? "-" }}
+                                                <template
+                                                    v-if="
+                                                        isNumericGradeDisplay(
+                                                            getGradeDisplay(
+                                                                item,
+                                                                'midterm',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            item,
+                                                            "midterm",
+                                                        )
+                                                    }}
+                                                </template>
+                                                <span
+                                                    v-else
+                                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                    :class="
+                                                        getGradeBadgeClass(
+                                                            getGradeDisplay(
+                                                                item,
+                                                                'midterm',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            item,
+                                                            "midterm",
+                                                        )
+                                                    }}
+                                                </span>
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-sm">
@@ -281,11 +354,70 @@ const submitGrades = () => {
                                                         form.grades[index].grade
                                                     "
                                                     type="number"
-                                                    min="0"
-                                                    max="100"
+                                                    min="1"
+                                                    max="5"
                                                     step="0.01"
                                                     class="w-24 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    @input="
+                                                        () => {
+                                                            if (
+                                                                form.grades[
+                                                                    index
+                                                                ].grade !==
+                                                                    null &&
+                                                                form.grades[
+                                                                    index
+                                                                ].grade !== ''
+                                                            ) {
+                                                                form.grades[
+                                                                    index
+                                                                ].grade_code =
+                                                                    '';
+                                                            }
+                                                        }
+                                                    "
                                                 />
+                                                <p
+                                                    class="mt-1 text-xs text-gray-500"
+                                                >
+                                                    Numeric: 1.00 to 5.00
+                                                </p>
+                                                <select
+                                                    v-model="
+                                                        form.grades[index]
+                                                            .grade_code
+                                                    "
+                                                    class="mt-2 w-28 rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    @change="
+                                                        () => {
+                                                            if (
+                                                                form.grades[
+                                                                    index
+                                                                ].grade_code
+                                                            ) {
+                                                                form.grades[
+                                                                    index
+                                                                ].grade = null;
+                                                            }
+                                                        }
+                                                    "
+                                                >
+                                                    <option value="">
+                                                        Numeric
+                                                    </option>
+                                                    <option
+                                                        v-for="code in finalGradeCodes"
+                                                        :key="code"
+                                                        :value="code"
+                                                    >
+                                                        {{ code }}
+                                                    </option>
+                                                </select>
+                                                <p
+                                                    class="mt-1 text-xs text-gray-500"
+                                                >
+                                                    Or choose a final code.
+                                                </p>
                                                 <InputError
                                                     :message="
                                                         form.errors[
@@ -294,9 +426,52 @@ const submitGrades = () => {
                                                     "
                                                     class="mt-1"
                                                 />
+                                                <InputError
+                                                    :message="
+                                                        form.errors[
+                                                            `grades.${index}.grade_code`
+                                                        ]
+                                                    "
+                                                    class="mt-1"
+                                                />
                                             </div>
                                             <span v-else>
-                                                {{ item.final_grade ?? "-" }}
+                                                <template
+                                                    v-if="
+                                                        isNumericGradeDisplay(
+                                                            getGradeDisplay(
+                                                                item,
+                                                                'final',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            item,
+                                                            "final",
+                                                        )
+                                                    }}
+                                                </template>
+                                                <span
+                                                    v-else
+                                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                    :class="
+                                                        getGradeBadgeClass(
+                                                            getGradeDisplay(
+                                                                item,
+                                                                'final',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            item,
+                                                            "final",
+                                                        )
+                                                    }}
+                                                </span>
                                             </span>
                                         </td>
                                     </tr>

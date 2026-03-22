@@ -28,11 +28,51 @@ const previousEnrollments = computed(() => {
 });
 
 const getGradeRowClass = (finalGrade) => {
-    if (finalGrade === null || finalGrade === undefined) {
+    if (
+        finalGrade === null ||
+        finalGrade === undefined ||
+        Number.isNaN(Number(finalGrade))
+    ) {
         return "";
     }
 
     return Number(finalGrade) <= 3.0 ? "bg-green-50" : "bg-red-50";
+};
+
+const getGradeDisplay = (subject, period) => {
+    const displayKey = `${period}_grade_display`;
+    const rawKey = `${period}_grade`;
+    return subject?.[displayKey] ?? subject?.[rawKey] ?? "-";
+};
+
+const isNumericGradeDisplay = (value) => {
+    if (value === null || value === undefined || value === "") {
+        return false;
+    }
+
+    return !Number.isNaN(Number(value));
+};
+
+const getGradeBadgeClass = (value) => {
+    const normalized = String(value || "").toUpperCase();
+
+    if (["INC", "INP", "INE", "IP", "IN PROGRESS"].includes(normalized)) {
+        return "bg-amber-100 text-amber-800";
+    }
+
+    if (["DRP", "DROPPED", "W"].includes(normalized)) {
+        return "bg-slate-100 text-slate-700";
+    }
+
+    if (["UD", "FDA", "5", "5.0"].includes(normalized)) {
+        return "bg-rose-100 text-rose-800";
+    }
+
+    if (["P", "AU"].includes(normalized)) {
+        return "bg-emerald-100 text-emerald-800";
+    }
+
+    return "bg-gray-100 text-gray-700";
 };
 
 const getYearLabel = (yearLevel) => {
@@ -100,6 +140,13 @@ const getSemesterLabel = (semester) => {
                                     )
                                 }}
                             </p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Term GPA:
+                                <span class="font-medium text-gray-700">
+                                    {{ currentEnrollment.term_gpa ?? "N/A" }}
+                                </span>
+                                (numeric grades only)
+                            </p>
                             <div class="mt-4 overflow-x-auto">
                                 <table
                                     class="min-w-full divide-y divide-gray-200"
@@ -163,12 +210,80 @@ const getSemesterLabel = (semester) => {
                                                 </p>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
-                                                {{
-                                                    subject.midterm_grade ?? "-"
-                                                }}
+                                                <template
+                                                    v-if="
+                                                        isNumericGradeDisplay(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'midterm',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "midterm",
+                                                        )
+                                                    }}
+                                                </template>
+                                                <span
+                                                    v-else
+                                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                    :class="
+                                                        getGradeBadgeClass(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'midterm',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "midterm",
+                                                        )
+                                                    }}
+                                                </span>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
-                                                {{ subject.final_grade ?? "-" }}
+                                                <template
+                                                    v-if="
+                                                        isNumericGradeDisplay(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'final',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "final",
+                                                        )
+                                                    }}
+                                                </template>
+                                                <span
+                                                    v-else
+                                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                    :class="
+                                                        getGradeBadgeClass(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'final',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "final",
+                                                        )
+                                                    }}
+                                                </span>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
                                                 <span
@@ -198,6 +313,13 @@ const getSemesterLabel = (semester) => {
                                     )
                                 }}
                             </h3>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Term GPA:
+                                <span class="font-medium text-gray-700">
+                                    {{ enrollment.term_gpa ?? "N/A" }}
+                                </span>
+                                (numeric grades only)
+                            </p>
                             <div class="mt-4 overflow-x-auto">
                                 <table
                                     class="min-w-full divide-y divide-gray-200"
@@ -261,12 +383,80 @@ const getSemesterLabel = (semester) => {
                                                 </p>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
-                                                {{
-                                                    subject.midterm_grade ?? "-"
-                                                }}
+                                                <template
+                                                    v-if="
+                                                        isNumericGradeDisplay(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'midterm',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "midterm",
+                                                        )
+                                                    }}
+                                                </template>
+                                                <span
+                                                    v-else
+                                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                    :class="
+                                                        getGradeBadgeClass(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'midterm',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "midterm",
+                                                        )
+                                                    }}
+                                                </span>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
-                                                {{ subject.final_grade ?? "-" }}
+                                                <template
+                                                    v-if="
+                                                        isNumericGradeDisplay(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'final',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "final",
+                                                        )
+                                                    }}
+                                                </template>
+                                                <span
+                                                    v-else
+                                                    class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                    :class="
+                                                        getGradeBadgeClass(
+                                                            getGradeDisplay(
+                                                                subject,
+                                                                'final',
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    {{
+                                                        getGradeDisplay(
+                                                            subject,
+                                                            "final",
+                                                        )
+                                                    }}
+                                                </span>
                                             </td>
                                             <td class="px-4 py-3 text-sm">
                                                 <span

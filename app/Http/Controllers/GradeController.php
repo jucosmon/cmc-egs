@@ -15,6 +15,15 @@ use Inertia\Inertia;
 
 class GradeController extends Controller
 {
+    private const FINAL_GRADE_CODES = ['INC', 'INP', 'DRP', 'W', 'UD', 'FDA', 'P', 'AU'];
+
+    private const GPA_EQUIVALENT_CODES = [
+        'UD' => 5.0,
+        'FDA' => 5.0,
+    ];
+
+    private const COMPLETION_DEADLINE_CODES = ['INC', 'INP'];
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -51,7 +60,36 @@ class GradeController extends Controller
             $query->where('academic_term_id', $request->academic_term_id);
         }
 
-        $enrollments = $query->latest()->get();
+        $enrollments = collect($query->latest()->get()->toArray())->map(function (array $enrollment) {
+            $gradedSubjects = collect($enrollment['enrolled_subjects'] ?? [])
+                ->map(function (array $subject) {
+                    $subject['_gpa_grade'] = $this->resolveFinalGradeForGpa($subject);
+                    return $subject;
+                })
+                ->filter(fn (array $subject) => $subject['_gpa_grade'] !== null)
+                ->values();
+
+            $totalUnits = 0;
+            $totalGradePoints = 0;
+
+            foreach ($gradedSubjects as $subject) {
+                $units = (float) ($subject['scheduled_subject']['curriculum_subject']['subject']['units'] ?? 0);
+                $grade = $subject['_gpa_grade'];
+
+                if ($units <= 0 || $grade === null) {
+                    continue;
+                }
+
+                $totalUnits += $units;
+                $totalGradePoints += ($grade * $units);
+            }
+
+            return array_merge($enrollment, [
+                'gpa_units' => $totalUnits,
+                'gpa_subject_count' => $gradedSubjects->count(),
+                'term_gpa' => $totalUnits > 0 ? round($totalGradePoints / $totalUnits, 2) : null,
+            ]);
+        });
 
         $academicTerms = AcademicTerm::latest('academic_year')->get();
         $activeTerm = AcademicTerm::where('is_active', true)->first();
@@ -137,7 +175,39 @@ class GradeController extends Controller
                         }
                     ])
                     ->latest('academic_term_id')
-                    ->get();
+                    ->get()
+                    ->toArray();
+
+                $enrollments = collect($enrollments)->map(function (array $enrollment) {
+                    $gradedSubjects = collect($enrollment['enrolled_subjects'] ?? [])
+                        ->map(function (array $subject) {
+                            $subject['_gpa_grade'] = $this->resolveFinalGradeForGpa($subject);
+                            return $subject;
+                        })
+                        ->filter(fn (array $subject) => $subject['_gpa_grade'] !== null)
+                        ->values();
+
+                    $totalUnits = 0;
+                    $totalGradePoints = 0;
+
+                    foreach ($gradedSubjects as $subject) {
+                        $units = (float) ($subject['scheduled_subject']['curriculum_subject']['subject']['units'] ?? 0);
+                        $grade = $subject['_gpa_grade'];
+
+                        if ($units <= 0 || $grade === null) {
+                            continue;
+                        }
+
+                        $totalUnits += $units;
+                        $totalGradePoints += ($grade * $units);
+                    }
+
+                    return array_merge($enrollment, [
+                        'gpa_units' => $totalUnits,
+                        'gpa_subject_count' => $gradedSubjects->count(),
+                        'term_gpa' => $totalUnits > 0 ? round($totalGradePoints / $totalUnits, 2) : null,
+                    ]);
+                });
             } else {
                 $searchMessage = 'No student found.';
             }
@@ -220,11 +290,10 @@ class GradeController extends Controller
             'grade_type' => 'required|in:midterm,final',
             'grades' => 'required|array',
             'grades.*.enrolled_subject_id' => 'required|exists:enrolled_subjects,id',
+            'grades.*.grade_code' => 'nullable|in:' . implode(',', self::FINAL_GRADE_CODES),
         ];
 
-        $rules['grades.*.grade'] = $user->role === 'registrar'
-            ? 'nullable|numeric|min:0|max:100'
-            : 'required|numeric|min:0|max:100';
+        $rules['grades.*.grade'] = 'nullable|numeric|min:1|max:5';
 
         $validated = $request->validate($rules);
 
@@ -239,12 +308,34 @@ class GradeController extends Controller
                 }
 
                 if ($validated['grade_type'] === 'midterm') {
+                    if (!isset($gradeData['grade']) || $gradeData['grade'] === null || $gradeData['grade'] === '') {
+                        return back()->withErrors([
+                            'grades' => 'Midterm grade is required and must be between 1.00 and 5.00.',
+                        ])->withInput();
+                    }
+
                     $enrolledSubject->update(['midterm_grade' => $gradeData['grade']]);
                 } else {
-                    $enrolledSubject->update(['final_grade' => $gradeData['grade']]);
+                    $gradeValue = $gradeData['grade'] ?? null;
+                    $gradeCode = strtoupper((string) ($gradeData['grade_code'] ?? ''));
+                    $gradeCode = $gradeCode !== '' ? $gradeCode : null;
+
+                    if ($gradeValue === null && $gradeCode === null) {
+                        return back()->withErrors([
+                            'grades' => 'Final grade must have either a numeric value (1.00-5.00) or a grade code.',
+                        ])->withInput();
+                    }
+
+                    $enrolledSubject->update([
+                        'final_grade' => $gradeValue,
+                        'final_grade_code' => $gradeCode,
+                        'completion_due_at' => ((float) $gradeValue === 4.0 || in_array($gradeCode, self::COMPLETION_DEADLINE_CODES, true))
+                            ? now()->addMonths(6)->toDateString()
+                            : null,
+                    ]);
 
                     // Mark as completed if final grade is submitted
-                    if ($gradeData['grade'] !== null) {
+                    if ($gradeValue !== null || $gradeCode !== null) {
                         $enrolledSubject->update(['status' => 'completed']);
                     }
                 }
@@ -284,14 +375,16 @@ class GradeController extends Controller
 
         $validated = $request->validate([
             'grade_period' => 'required|in:midterm,final',
-            'new_grade' => 'required|numeric|min:0|max:100',
+            'new_grade_numeric' => 'nullable|numeric|min:1|max:5',
+            'new_grade_code' => 'nullable|in:' . implode(',', self::FINAL_GRADE_CODES),
+            'completion_due_at' => 'nullable|date',
             'reason' => 'required|string|max:1000',
             'attachment' => 'nullable|file|max:5120',
         ]);
 
         $oldGrade = $validated['grade_period'] === 'midterm'
             ? $enrolledSubject->midterm_grade
-            : $enrolledSubject->final_grade;
+            : ($enrolledSubject->final_grade_code ?? $enrolledSubject->final_grade);
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
@@ -300,20 +393,52 @@ class GradeController extends Controller
         }
 
         if ($validated['grade_period'] === 'midterm') {
-            $enrolledSubject->update(['midterm_grade' => $validated['new_grade']]);
+            if (($validated['new_grade_numeric'] ?? null) === null) {
+                return back()->withErrors(['new_grade_numeric' => 'Midterm grade must be numeric and between 1.00 and 5.00.'])->withInput();
+            }
+
+            $enrolledSubject->update(['midterm_grade' => (float) $validated['new_grade_numeric']]);
         } else {
+            $finalGrade = null;
+            $finalCode = null;
+            $completionDueAt = null;
+
+            if (($validated['new_grade_numeric'] ?? null) === null && ($validated['new_grade_code'] ?? null) === null) {
+                return back()->withErrors([
+                    'new_grade_numeric' => 'Provide either final numeric grade (1.00-5.00) or a grade code.',
+                ])->withInput();
+            }
+
+            if (($validated['new_grade_numeric'] ?? null) !== null) {
+                $finalGrade = (float) $validated['new_grade_numeric'];
+            }
+
+            if (($validated['new_grade_code'] ?? null) !== null) {
+                $finalCode = strtoupper((string) $validated['new_grade_code']);
+            }
+
+            if ($finalGrade === 4.0 || in_array($finalCode, self::COMPLETION_DEADLINE_CODES, true)) {
+                $completionDueAt = $validated['completion_due_at'] ?? now()->addMonths(6)->toDateString();
+            }
+
             $enrolledSubject->update([
-                'final_grade' => $validated['new_grade'],
-                'status' => $validated['new_grade'] !== null ? 'completed' : $enrolledSubject->status,
+                'final_grade' => $finalGrade,
+                'final_grade_code' => $finalCode,
+                'completion_due_at' => $completionDueAt,
+                'status' => ($finalGrade !== null || $finalCode !== null) ? 'completed' : $enrolledSubject->status,
             ]);
         }
 
         GradeChangeLog::create([
             'enrolled_subject_id' => $enrolledSubject->id,
             'grade_period' => $validated['grade_period'],
-            'old_grade' => $oldGrade,
-            'new_grade' => $validated['new_grade'],
-            'reason' => $validated['reason'],
+            'old_grade' => is_numeric($oldGrade) ? (float) $oldGrade : null,
+            'new_grade' => ($validated['new_grade_numeric'] ?? null) !== null
+                ? (float) $validated['new_grade_numeric']
+                : null,
+            'reason' => ($validated['new_grade_code'] ?? null)
+                ? $validated['reason'] . ' [Code: ' . strtoupper((string) $validated['new_grade_code']) . ']'
+                : $validated['reason'],
             'attachment_path' => $attachmentPath,
             'modified_by' => $user->id,
         ]);
@@ -367,6 +492,21 @@ class GradeController extends Controller
         return Inertia::render('Grades/ClassGradeSheet', [
             'scheduledSubject' => $scheduledSubject,
         ]);
+    }
+
+    private function resolveFinalGradeForGpa(array $subject): ?float
+    {
+        if (is_numeric($subject['final_grade'] ?? null)) {
+            return (float) $subject['final_grade'];
+        }
+
+        $code = strtoupper((string) ($subject['final_grade_code'] ?? ''));
+
+        if (isset(self::GPA_EQUIVALENT_CODES[$code])) {
+            return self::GPA_EQUIVALENT_CODES[$code];
+        }
+
+        return null;
     }
 
 }

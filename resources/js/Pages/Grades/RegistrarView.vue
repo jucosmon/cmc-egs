@@ -20,11 +20,14 @@ const searchForm = useForm({
 
 const showUpdateModal = ref(false);
 const selectedSubject = ref(null);
+const finalGradeCodes = ["INC", "INP", "DRP", "W", "UD", "FDA", "P", "AU"];
 
 const updateForm = useForm({
     _method: "put",
     grade_period: "midterm",
-    new_grade: "",
+    new_grade_numeric: "",
+    new_grade_code: "",
+    completion_due_at: "",
     reason: "",
     attachment: null,
 });
@@ -40,10 +43,13 @@ const searchStudent = () => {
 const openUpdateModal = (enrolledSubject, period) => {
     selectedSubject.value = { ...enrolledSubject, period };
     updateForm.grade_period = period;
-    updateForm.new_grade =
+    updateForm.new_grade_numeric =
         period === "midterm"
             ? (enrolledSubject.midterm_grade ?? "")
             : (enrolledSubject.final_grade ?? "");
+    updateForm.new_grade_code =
+        period === "final" ? (enrolledSubject.final_grade_code ?? "") : "";
+    updateForm.completion_due_at = enrolledSubject.completion_due_at || "";
     updateForm.reason = "";
     updateForm.attachment = null;
     updateForm.clearErrors();
@@ -57,11 +63,47 @@ const closeUpdateModal = () => {
     updateForm.clearErrors();
 };
 
+const getGradeDisplay = (subject, period) => {
+    const displayKey = `${period}_grade_display`;
+    const rawKey = `${period}_grade`;
+    return subject?.[displayKey] ?? subject?.[rawKey] ?? "-";
+};
+
+const isNumericGradeDisplay = (value) => {
+    if (value === null || value === undefined || value === "") {
+        return false;
+    }
+
+    return !Number.isNaN(Number(value));
+};
+
+const getGradeBadgeClass = (value) => {
+    const normalized = String(value || "").toUpperCase();
+
+    if (["INC", "INP", "INE", "IP", "IN PROGRESS"].includes(normalized)) {
+        return "bg-amber-100 text-amber-800";
+    }
+
+    if (["DRP", "DROPPED", "W"].includes(normalized)) {
+        return "bg-slate-100 text-slate-700";
+    }
+
+    if (["UD", "FDA", "5", "5.0"].includes(normalized)) {
+        return "bg-rose-100 text-rose-800";
+    }
+
+    if (["P", "AU"].includes(normalized)) {
+        return "bg-emerald-100 text-emerald-800";
+    }
+
+    return "bg-gray-100 text-gray-700";
+};
+
 const oldGrade = computed(() => {
     if (!selectedSubject.value) return "-";
     return selectedSubject.value.period === "midterm"
-        ? (selectedSubject.value.midterm_grade ?? "-")
-        : (selectedSubject.value.final_grade ?? "-");
+        ? getGradeDisplay(selectedSubject.value, "midterm")
+        : getGradeDisplay(selectedSubject.value, "final");
 });
 
 const submitUpdate = () => {
@@ -172,6 +214,13 @@ const submitUpdate = () => {
                                         -
                                         {{ enrollment.academic_term?.semester }}
                                     </h5>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        Term GPA:
+                                        <span class="font-medium text-gray-700">
+                                            {{ enrollment.term_gpa ?? "N/A" }}
+                                        </span>
+                                        (numeric grades only)
+                                    </p>
                                 </div>
                                 <div class="overflow-x-auto">
                                     <table
@@ -235,10 +284,42 @@ const submitUpdate = () => {
                                                         class="flex items-center gap-2"
                                                     >
                                                         <span>
-                                                            {{
-                                                                subject.midterm_grade ??
-                                                                "-"
-                                                            }}
+                                                            <template
+                                                                v-if="
+                                                                    isNumericGradeDisplay(
+                                                                        getGradeDisplay(
+                                                                            subject,
+                                                                            'midterm',
+                                                                        ),
+                                                                    )
+                                                                "
+                                                            >
+                                                                {{
+                                                                    getGradeDisplay(
+                                                                        subject,
+                                                                        "midterm",
+                                                                    )
+                                                                }}
+                                                            </template>
+                                                            <span
+                                                                v-else
+                                                                class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                                :class="
+                                                                    getGradeBadgeClass(
+                                                                        getGradeDisplay(
+                                                                            subject,
+                                                                            'midterm',
+                                                                        ),
+                                                                    )
+                                                                "
+                                                            >
+                                                                {{
+                                                                    getGradeDisplay(
+                                                                        subject,
+                                                                        "midterm",
+                                                                    )
+                                                                }}
+                                                            </span>
                                                         </span>
                                                         <button
                                                             class="text-xs text-indigo-600 hover:text-indigo-800"
@@ -258,10 +339,42 @@ const submitUpdate = () => {
                                                         class="flex items-center gap-2"
                                                     >
                                                         <span>
-                                                            {{
-                                                                subject.final_grade ??
-                                                                "-"
-                                                            }}
+                                                            <template
+                                                                v-if="
+                                                                    isNumericGradeDisplay(
+                                                                        getGradeDisplay(
+                                                                            subject,
+                                                                            'final',
+                                                                        ),
+                                                                    )
+                                                                "
+                                                            >
+                                                                {{
+                                                                    getGradeDisplay(
+                                                                        subject,
+                                                                        "final",
+                                                                    )
+                                                                }}
+                                                            </template>
+                                                            <span
+                                                                v-else
+                                                                class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                                                                :class="
+                                                                    getGradeBadgeClass(
+                                                                        getGradeDisplay(
+                                                                            subject,
+                                                                            'final',
+                                                                        ),
+                                                                    )
+                                                                "
+                                                            >
+                                                                {{
+                                                                    getGradeDisplay(
+                                                                        subject,
+                                                                        "final",
+                                                                    )
+                                                                }}
+                                                            </span>
                                                         </span>
                                                         <button
                                                             class="text-xs text-indigo-600 hover:text-indigo-800"
@@ -329,17 +442,78 @@ const submitUpdate = () => {
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">
-                        New Grade
+                        Grade (Numeric)
                     </label>
                     <input
-                        v-model="updateForm.new_grade"
+                        v-model="updateForm.new_grade_numeric"
                         type="number"
-                        min="0"
-                        max="100"
+                        min="1"
+                        max="5"
                         step="0.01"
+                        placeholder="e.g. 1.75 or 5.00"
+                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        @input="
+                            () => {
+                                if (
+                                    selectedSubject?.period === 'final' &&
+                                    updateForm.new_grade_numeric !== ''
+                                ) {
+                                    updateForm.new_grade_code = '';
+                                }
+                            }
+                        "
+                    />
+                    <p class="mt-1 text-xs text-gray-500">
+                        Use numeric grade from 1.00 to 5.00.
+                    </p>
+                    <InputError
+                        :message="updateForm.errors.new_grade_numeric"
+                    />
+                </div>
+
+                <div v-if="selectedSubject?.period === 'final'">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Grade Code
+                    </label>
+                    <select
+                        v-model="updateForm.new_grade_code"
+                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        @change="
+                            () => {
+                                if (updateForm.new_grade_code) {
+                                    updateForm.new_grade_numeric = '';
+                                }
+                            }
+                        "
+                    >
+                        <option value="">Numeric Grade</option>
+                        <option
+                            v-for="code in finalGradeCodes"
+                            :key="code"
+                            :value="code"
+                        >
+                            {{ code }}
+                        </option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">
+                        For final updates only. Leave this blank to use numeric
+                        grade.
+                    </p>
+                    <InputError :message="updateForm.errors.new_grade_code" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Completion Due Date (for INC/INP/4.0)
+                    </label>
+                    <input
+                        v-model="updateForm.completion_due_at"
+                        type="date"
                         class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     />
-                    <InputError :message="updateForm.errors.new_grade" />
+                    <InputError
+                        :message="updateForm.errors.completion_due_at"
+                    />
                 </div>
 
                 <div>
