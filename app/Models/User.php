@@ -7,6 +7,8 @@ use App\Models\Traits\SoftArchive;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -22,6 +24,7 @@ class User extends Authenticatable
         'password',
         'email',
         'personal_email',
+        'avatar',
         'role',
         'official_id',
         'first_name',
@@ -33,6 +36,11 @@ class User extends Authenticatable
         'sex',
         'profile_picture',
         'is_active',
+    ];
+
+    protected $appends = [
+        'full_name',
+        'avatar_url',
     ];
 
     /**
@@ -96,6 +104,29 @@ class User extends Authenticatable
     public function getFullNameAttribute()
     {
         return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+    }
+
+    public function getAvatarAttribute()
+    {
+        return $this->attributes['avatar'] ?? $this->profile_picture;
+    }
+
+    public function setAvatarAttribute($value): void
+    {
+        if (Schema::hasColumn('users', 'avatar')) {
+            $this->attributes['avatar'] = $value;
+        }
+
+        $this->attributes['profile_picture'] = $value;
+    }
+
+    public function getAvatarUrlAttribute(): string
+    {
+        if ($this->avatar) {
+            return asset(Storage::url($this->avatar));
+        }
+
+        return asset('images/default-avatar.svg');
     }
 
     // Scopes

@@ -154,22 +154,11 @@ const getRoleLabel = (role) => {
                     </div>
                     <div class="flex items-center">
                         <div class="h-20 w-20 flex-shrink-0">
-                            <div
-                                class="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-600"
-                            >
-                                <span class="text-2xl font-medium text-white">
-                                    {{
-                                        account &&
-                                        account.first_name &&
-                                        account.last_name
-                                            ? (
-                                                  account.first_name.charAt(0) +
-                                                  account.last_name.charAt(0)
-                                              ).toUpperCase()
-                                            : "?"
-                                    }}
-                                </span>
-                            </div>
+                            <img
+                                :src="account.avatar_url"
+                                alt="Account avatar"
+                                class="h-20 w-20 rounded-full object-cover"
+                            />
                         </div>
                         <div class="ml-8">
                             <h1 class="text-3xl font-bold text-gray-900">

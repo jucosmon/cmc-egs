@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -62,6 +63,30 @@ class ProfileController extends Controller
 
         return Redirect::route('profile.edit')
             ->with('success', 'You have successfully updated your account!');
+    }
+
+    /**
+     * Upload or replace the authenticated user's avatar.
+     */
+    public function uploadAvatar(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,png', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $oldAvatar = $user->avatar;
+
+        $path = Storage::disk('public')->put('avatars', $validated['avatar']);
+        $user->avatar = $path;
+        $user->save();
+
+        if ($oldAvatar && Storage::disk('public')->exists($oldAvatar)) {
+            Storage::disk('public')->delete($oldAvatar);
+        }
+
+        return Redirect::route('profile.edit')
+            ->with('success', 'Profile picture updated successfully.');
     }
 
     /**

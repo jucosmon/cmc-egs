@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, usePage } from "@inertiajs/vue3";
+import { Head, useForm, usePage } from "@inertiajs/vue3";
 import { computed, ref } from "vue";
 import UpdatePasswordForm from "./Partials/UpdatePasswordForm.vue";
 import UpdateProfileInformationForm from "./Partials/UpdateProfileInformationForm.vue";
@@ -42,6 +42,22 @@ const flashSuccess = computed(() => {
     const value = page.props.flash?.success;
     return typeof value === "function" ? value() : value;
 });
+
+const avatarForm = useForm({
+    avatar: null,
+});
+
+const onAvatarSelected = (event) => {
+    avatarForm.avatar = event.target.files?.[0] || null;
+};
+
+const submitAvatar = () => {
+    avatarForm.post(route("profile.avatar.upload"), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => avatarForm.reset("avatar"),
+    });
+};
 
 const formatDate = (date) => {
     if (!date) return "N/A";
@@ -95,25 +111,11 @@ const getFullNameWithMiddleInitial = () => {
                         class="flex flex-col gap-6 sm:flex-row sm:items-center"
                     >
                         <div class="h-20 w-20 flex-shrink-0">
-                            <div
-                                class="flex h-20 w-20 items-center justify-center rounded-full bg-indigo-600"
-                            >
-                                <span class="text-2xl font-medium text-white">
-                                    {{
-                                        props.account.first_name &&
-                                        props.account.last_name
-                                            ? (
-                                                  props.account.first_name.charAt(
-                                                      0,
-                                                  ) +
-                                                  props.account.last_name.charAt(
-                                                      0,
-                                                  )
-                                              ).toUpperCase()
-                                            : "?"
-                                    }}
-                                </span>
-                            </div>
+                            <img
+                                :src="props.account.avatar_url"
+                                alt="Profile avatar"
+                                class="h-20 w-20 rounded-full object-cover"
+                            />
                         </div>
                         <div class="flex-1">
                             <h1 class="text-3xl font-bold text-gray-900">
@@ -205,6 +207,52 @@ const getFullNameWithMiddleInitial = () => {
                                 Profile updates are restricted. Contact IT Admin
                                 for account changes.
                             </p>
+                            <div class="mt-4">
+                                <form
+                                    class="flex flex-col gap-3 sm:flex-row sm:items-center"
+                                    @submit.prevent="submitAvatar"
+                                >
+                                    <label
+                                        for="profile-avatar-input"
+                                        class="inline-flex cursor-pointer items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Upload New Picture
+                                    </label>
+                                    <input
+                                        id="profile-avatar-input"
+                                        type="file"
+                                        class="hidden"
+                                        accept=".jpg,.png,image/jpeg,image/png"
+                                        @change="onAvatarSelected"
+                                    />
+                                    <span
+                                        v-if="avatarForm.avatar"
+                                        class="text-sm text-gray-600"
+                                    >
+                                        {{ avatarForm.avatar.name }}
+                                    </span>
+                                    <button
+                                        type="submit"
+                                        :disabled="
+                                            avatarForm.processing ||
+                                            !avatarForm.avatar
+                                        "
+                                        class="inline-flex h-10 items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {{
+                                            avatarForm.processing
+                                                ? "Uploading..."
+                                                : "Save Photo"
+                                        }}
+                                    </button>
+                                </form>
+                                <p
+                                    v-if="avatarForm.errors.avatar"
+                                    class="mt-2 text-sm text-red-600"
+                                >
+                                    {{ avatarForm.errors.avatar }}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

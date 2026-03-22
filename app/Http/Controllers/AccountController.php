@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -463,6 +464,7 @@ class AccountController extends Controller
             'address' => 'nullable|string',
             'date_of_birth' => 'nullable|date',
             'sex' => 'nullable|in:Male,Female',
+            'avatar' => 'nullable|image|mimes:jpg,png|max:2048',
             'department_id' => 'nullable|exists:departments,id',
             'program_id' => $isStudent ? 'required|exists:programs,id' : 'nullable',
             'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
@@ -480,6 +482,17 @@ class AccountController extends Controller
         $account->update(array_filter($validated, function ($k) {
             return in_array($k, ['email', 'personal_email', 'first_name', 'middle_name', 'last_name', 'official_id', 'phone', 'address', 'date_of_birth', 'sex']);
         }, ARRAY_FILTER_USE_KEY));
+
+        if ($request->hasFile('avatar')) {
+            $oldAvatar = $account->avatar;
+            $path = Storage::disk('public')->put('avatars', $request->file('avatar'));
+            $account->avatar = $path;
+            $account->save();
+
+            if ($oldAvatar && Storage::disk('public')->exists($oldAvatar)) {
+                Storage::disk('public')->delete($oldAvatar);
+            }
+        }
 
         // Update related records depending on role
         if ($account->role === 'student') {
@@ -723,6 +736,7 @@ class AccountController extends Controller
                 'full_name' => $account->full_name,
                 'email' => $account->email,
                 'official_id' => $account->official_id,
+                'avatar_url' => $account->avatar_url,
                 'role' => $account->role,
                 'is_active' => $account->is_active,
                 'student' => $account->student,

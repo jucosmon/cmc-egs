@@ -29,6 +29,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar'])
+        ->name('profile.avatar.upload');
     Route::patch('/profile', [ProfileController::class, 'update'])
         ->middleware('role:it_admin')
         ->name('profile.update');

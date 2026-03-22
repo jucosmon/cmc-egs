@@ -242,10 +242,17 @@ const formatDate = (date) => {
                                 class="hover:bg-gray-50"
                             >
                                 <td class="whitespace-nowrap px-6 py-4">
-                                    <div
-                                        class="text-sm font-medium text-gray-900"
-                                    >
-                                        {{ account.full_name }}
+                                    <div class="flex items-center gap-3">
+                                        <img
+                                            :src="account.avatar_url"
+                                            alt="Account avatar"
+                                            class="h-10 w-10 rounded-full object-cover"
+                                        />
+                                        <div
+                                            class="text-sm font-medium text-gray-900"
+                                        >
+                                            {{ account.full_name }}
+                                        </div>
                                     </div>
                                 </td>
                                 <td

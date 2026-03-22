@@ -1,4 +1,5 @@
 <script setup>
+import AvatarUpload from "@/Components/AvatarUpload.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
 import { computed, watch } from "vue";
@@ -121,6 +122,7 @@ const form = useForm({
         props.account.student && props.account.student.block_id
             ? String(props.account.student.block_id)
             : "",
+    avatar: null,
     type: props.userType,
 });
 
@@ -197,9 +199,27 @@ watch(
 );
 
 const submit = () => {
-    form.put(route("accounts.update", { account: props.account.id }), {
+    const targetRoute = route("accounts.update", { account: props.account.id });
+
+    if (form.avatar) {
+        form.transform((data) => ({
+            ...data,
+            _method: "put",
+        })).post(targetRoute, {
+            forceFormData: true,
+            onSuccess: () => {
+                form.reset("avatar");
+            },
+            onFinish: () => {
+                form.transform((data) => data);
+            },
+        });
+        return;
+    }
+
+    form.put(targetRoute, {
         onSuccess: () => {
-            form.reset();
+            form.reset("avatar");
         },
     });
 };
@@ -304,6 +324,22 @@ const getRoleLabel = (role) => {
                                         </ul>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700"
+                            >
+                                Profile Picture
+                            </label>
+                            <div class="mt-2">
+                                <AvatarUpload
+                                    v-model="form.avatar"
+                                    :current-avatar-url="account.avatar_url"
+                                    :error="form.errors.avatar"
+                                    label="Upload account photo"
+                                />
                             </div>
                         </div>
 
