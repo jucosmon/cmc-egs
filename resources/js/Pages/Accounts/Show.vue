@@ -109,6 +109,23 @@ const getDisplayAddress = (account) => {
 
     return account?.address || "N/A";
 };
+
+const formatPhone = (phone) => {
+    if (!phone) return "N/A";
+
+    const digits = String(phone).replace(/\D/g, "");
+
+    if (digits.startsWith("639") && digits.length === 12) {
+        const local = digits.slice(2);
+        return `+63 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
+    }
+
+    if (digits.startsWith("09") && digits.length === 11) {
+        return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+
+    return phone;
+};
 </script>
 
 <template>
@@ -263,7 +280,7 @@ const getDisplayAddress = (account) => {
                                     Phone
                                 </dt>
                                 <dd class="mt-1 text-sm text-gray-900">
-                                    {{ account.phone || "N/A" }}
+                                    {{ formatPhone(account.phone) }}
                                 </dd>
                             </div>
                             <div>

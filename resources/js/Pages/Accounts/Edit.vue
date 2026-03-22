@@ -3,7 +3,7 @@ import AvatarUpload from "@/Components/AvatarUpload.vue";
 import PsgcAddress from "@/Components/PsgcAddress.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, Link, useForm, usePage } from "@inertiajs/vue3";
-import { computed, watch } from "vue";
+import { computed, ref, watch } from "vue";
 
 const page = usePage();
 const currentUserRole = computed(() => page.props.auth?.user?.role ?? null);
@@ -167,6 +167,37 @@ const programBlocks = computed(() => {
     );
 });
 
+const namePattern = "^[A-Za-z]+(?:[\\s'-][A-Za-z]+)*$";
+const phonePattern = "^9\\d{9}$";
+const maxBirthDate = computed(() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 18);
+    return date.toISOString().split("T")[0];
+});
+
+const normalizePhoneInput = (value) => {
+    let digits = String(value || "").replace(/\D/g, "");
+
+    if (digits.startsWith("639")) {
+        digits = digits.slice(2);
+    } else if (digits.startsWith("09")) {
+        digits = digits.slice(1);
+    }
+
+    if (digits && !digits.startsWith("9")) {
+        const firstNine = digits.indexOf("9");
+        digits = firstNine >= 0 ? digits.slice(firstNine) : "";
+    }
+
+    return digits.slice(0, 10);
+};
+
+const phoneLocal = ref(normalizePhoneInput(props.account.phone || ""));
+
+const onPhoneInput = (event) => {
+    phoneLocal.value = normalizePhoneInput(event.target.value);
+};
+
 const blockCapacity = (block) => Number(block.max_students ?? 50);
 const blockOccupancy = (block) => Number(block.students_count ?? 0);
 const isBlockFull = (block) => blockOccupancy(block) >= blockCapacity(block);
@@ -228,6 +259,8 @@ watch(
 );
 
 const submit = () => {
+    form.phone = phoneLocal.value ? `+63${phoneLocal.value}` : "";
+
     const addressParts = [
         form.barangay_name,
         form.city_name,
@@ -419,12 +452,13 @@ const getRoleLabel = (role) => {
                                 for="personal_email"
                                 class="block text-sm font-medium text-gray-700"
                             >
-                                Personal Email
+                                Personal Email *
                             </label>
                             <input
                                 id="personal_email"
                                 v-model="form.personal_email"
                                 type="email"
+                                required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>
@@ -441,6 +475,7 @@ const getRoleLabel = (role) => {
                                 v-model="form.first_name"
                                 type="text"
                                 required
+                                :pattern="namePattern"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>
@@ -456,6 +491,7 @@ const getRoleLabel = (role) => {
                                 id="middle_name"
                                 v-model="form.middle_name"
                                 type="text"
+                                :pattern="namePattern"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>
@@ -472,6 +508,7 @@ const getRoleLabel = (role) => {
                                 v-model="form.last_name"
                                 type="text"
                                 required
+                                :pattern="namePattern"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>
@@ -498,14 +535,34 @@ const getRoleLabel = (role) => {
                                 for="phone"
                                 class="block text-sm font-medium text-gray-700"
                             >
-                                Phone
+                                Phone *
                             </label>
-                            <input
-                                id="phone"
-                                v-model="form.phone"
-                                type="tel"
-                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            />
+                            <div
+                                class="mt-1 flex items-center overflow-hidden rounded-md border border-gray-300 shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500"
+                            >
+                                <span
+                                    class="bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700"
+                                >
+                                    +63
+                                </span>
+                                <input
+                                    id="phone"
+                                    :value="phoneLocal"
+                                    @input="onPhoneInput"
+                                    type="text"
+                                    inputmode="numeric"
+                                    required
+                                    maxlength="10"
+                                    minlength="10"
+                                    :pattern="phonePattern"
+                                    placeholder="9XXXXXXXXX"
+                                    class="block w-full border-0 px-3 py-2 focus:ring-0"
+                                />
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Enter 10 digits starting with 9 (example:
+                                9123456789).
+                            </p>
                         </div>
 
                         <div>
@@ -513,12 +570,14 @@ const getRoleLabel = (role) => {
                                 for="date_of_birth"
                                 class="block text-sm font-medium text-gray-700"
                             >
-                                Date of Birth
+                                Date of Birth *
                             </label>
                             <input
                                 id="date_of_birth"
                                 v-model="form.date_of_birth"
                                 type="date"
+                                required
+                                :max="maxBirthDate"
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             />
                         </div>
@@ -528,11 +587,12 @@ const getRoleLabel = (role) => {
                                 for="sex"
                                 class="block text-sm font-medium text-gray-700"
                             >
-                                Sex
+                                Sex *
                             </label>
                             <select
                                 id="sex"
                                 v-model="form.sex"
+                                required
                                 class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                             >
                                 <option value="">Select...</option>

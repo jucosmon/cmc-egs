@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -120,6 +121,10 @@ class AccountController extends Controller
         $type = $request->input('type', 'student');
         $user = Auth::user();
 
+        $request->merge([
+            'phone' => $this->normalizePhilippinePhone($request->input('phone')),
+        ]);
+
         // Validate user access and creation permissions
         $this->authorizeAccountAccess($user, $type);
         if (!$this->canCreateAccounts($user, $type)) {
@@ -128,28 +133,36 @@ class AccountController extends Controller
 
         $isStudent = $type === 'student';
 
+        $minimumBirthDate = now()->subYears(18)->toDateString();
+
         $validated = $request->validate([
-            'email' => 'nullable|email|unique:users',
+            'email' => 'nullable|email|unique:users,email',
             'personal_email' => 'required|email|unique:users,personal_email',
-            'first_name' => 'required|string',
-            'middle_name' => 'nullable|string',
-            'last_name' => 'required|string',
-            'official_id' => 'nullable|unique:users',
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
+            'first_name' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z]+(?:[\\s\'-][A-Za-z]+)*$/'],
+            'middle_name' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z]+(?:[\\s\'-][A-Za-z]+)*$/'],
+            'last_name' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z]+(?:[\\s\'-][A-Za-z]+)*$/'],
+            'official_id' => 'nullable|string|max:50|unique:users,official_id',
+            'phone' => ['required', 'regex:/^\\+639\\d{9}$/'],
+            'address' => 'nullable|string|max:255',
             'province_code' => 'nullable|string|max:10',
             'province_name' => 'nullable|string|max:100',
             'city_code' => 'nullable|string|max:10',
             'city_name' => 'nullable|string|max:100',
             'barangay_code' => 'nullable|string|max:10',
             'barangay_name' => 'nullable|string|max:100',
-            'date_of_birth' => 'nullable|date',
-            'sex' => 'nullable|in:Male,Female',
+            'date_of_birth' => ['required', 'date', 'before_or_equal:' . $minimumBirthDate],
+            'sex' => ['required', Rule::in(['Male', 'Female'])],
             'department_id' => 'nullable|exists:departments,id',
             'program_id' => $isStudent ? 'required|exists:programs,id' : 'nullable',
             'year_level' => $isStudent ? 'required|integer|min:1|max:6' : 'nullable',
             'status' => $isStudent ? 'required|in:regular,irregular,graduated' : 'nullable',
             'block_id' => $isStudent ? 'required|exists:blocks,id' : 'nullable',
+        ], [
+            'first_name.regex' => 'First name must contain letters only.',
+            'middle_name.regex' => 'Middle name must contain letters only.',
+            'last_name.regex' => 'Last name must contain letters only.',
+            'phone.regex' => 'Contact number must be a valid Philippine mobile number.',
+            'date_of_birth.before_or_equal' => 'Birthday must be at least 18 years before today.',
         ]);
 
         // Generate email if not provided
@@ -457,6 +470,10 @@ class AccountController extends Controller
     {
         Gate::authorize('manage-accounts');
 
+        $request->merge([
+            'phone' => $this->normalizePhilippinePhone($request->input('phone')),
+        ]);
+
         $currentUser = Auth::user();
         $type = $request->input('type', $account->role);
 
@@ -468,23 +485,25 @@ class AccountController extends Controller
 
         $isStudent = $type === 'student';
 
+        $minimumBirthDate = now()->subYears(18)->toDateString();
+
         $rules = [
             'email' => 'required|email|unique:users,email,' . $account->id,
-            'personal_email' => 'nullable|email|unique:users,personal_email,' . $account->id,
-            'first_name' => 'required|string',
-            'middle_name' => 'nullable|string',
-            'last_name' => 'required|string',
-            'official_id' => 'nullable|unique:users,official_id,' . $account->id,
-            'phone' => 'nullable|string',
-            'address' => 'nullable|string',
+            'personal_email' => 'required|email|unique:users,personal_email,' . $account->id,
+            'first_name' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z]+(?:[\\s\'-][A-Za-z]+)*$/'],
+            'middle_name' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z]+(?:[\\s\'-][A-Za-z]+)*$/'],
+            'last_name' => ['required', 'string', 'max:100', 'regex:/^[A-Za-z]+(?:[\\s\'-][A-Za-z]+)*$/'],
+            'official_id' => 'nullable|string|max:50|unique:users,official_id,' . $account->id,
+            'phone' => ['required', 'regex:/^\\+639\\d{9}$/'],
+            'address' => 'nullable|string|max:255',
             'province_code' => 'nullable|string|max:10',
             'province_name' => 'nullable|string|max:100',
             'city_code' => 'nullable|string|max:10',
             'city_name' => 'nullable|string|max:100',
             'barangay_code' => 'nullable|string|max:10',
             'barangay_name' => 'nullable|string|max:100',
-            'date_of_birth' => 'nullable|date',
-            'sex' => 'nullable|in:Male,Female',
+            'date_of_birth' => ['required', 'date', 'before_or_equal:' . $minimumBirthDate],
+            'sex' => ['required', Rule::in(['Male', 'Female'])],
             'avatar' => 'nullable|image|mimes:jpg,png|max:2048',
             'department_id' => 'nullable|exists:departments,id',
             'program_id' => $isStudent ? 'required|exists:programs,id' : 'nullable',
@@ -497,7 +516,13 @@ class AccountController extends Controller
             $rules['program_id'] = 'nullable|exists:programs,id';
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'first_name.regex' => 'First name must contain letters only.',
+            'middle_name.regex' => 'Middle name must contain letters only.',
+            'last_name.regex' => 'Last name must contain letters only.',
+            'phone.regex' => 'Contact number must be a valid Philippine mobile number.',
+            'date_of_birth.before_or_equal' => 'Birthday must be at least 18 years before today.',
+        ]);
         $validated['address'] = $this->buildAddressFromPsgc($validated);
 
         // Update base user fields
@@ -987,5 +1012,32 @@ class AccountController extends Controller
         }
 
         return $validated['address'] ?? null;
+    }
+
+    private function normalizePhilippinePhone(?string $phone): ?string
+    {
+        if (!$phone) {
+            return null;
+        }
+
+        $digits = preg_replace('/\\D+/', '', $phone);
+
+        if (!$digits) {
+            return null;
+        }
+
+        if (str_starts_with($digits, '09') && strlen($digits) === 11) {
+            return '+63' . substr($digits, 1);
+        }
+
+        if (str_starts_with($digits, '9') && strlen($digits) === 10) {
+            return '+63' . $digits;
+        }
+
+        if (str_starts_with($digits, '639') && strlen($digits) === 12) {
+            return '+' . $digits;
+        }
+
+        return null;
     }
 }

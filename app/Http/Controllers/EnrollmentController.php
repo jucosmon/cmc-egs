@@ -14,6 +14,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class EnrollmentController extends Controller
@@ -131,14 +132,51 @@ class EnrollmentController extends Controller
     {
         $user = Auth::user();
 
+        if (!in_array($user->role, ['student', 'registrar'])) {
+            abort(403, 'Only students and registrars can create enrollments.');
+        }
+
         $validated = $request->validate([
             'student_id' => 'required|exists:students,id',
             'academic_term_id' => 'required|exists:academic_terms,id',
             'block_id' => 'required|exists:blocks,id',
             'year_level' => 'required|integer|min:1|max:5',
             'subject_ids' => 'required|array|min:1',
-            'subject_ids.*' => 'exists:scheduled_subjects,id',
+            'subject_ids.*' => 'required|integer|distinct|exists:scheduled_subjects,id',
         ]);
+
+        if ($user->role === 'student') {
+            $authStudentId = $user->student?->id;
+            if (!$authStudentId) {
+                abort(403, 'Student profile not found.');
+            }
+
+            if ((int) $validated['student_id'] !== (int) $authStudentId) {
+                throw ValidationException::withMessages([
+                    'student_id' => 'You can only create enrollment for your own account.',
+                ]);
+            }
+        }
+
+        $student = Student::with('program')->findOrFail($validated['student_id']);
+
+        if ((int) $student->block_id !== (int) $validated['block_id']) {
+            throw ValidationException::withMessages([
+                'block_id' => 'Selected block does not match the student\'s assigned block.',
+            ]);
+        }
+
+        $validScheduledCount = ScheduledSubject::query()
+            ->whereIn('id', $validated['subject_ids'])
+            ->where('academic_term_id', $validated['academic_term_id'])
+            ->where('block_id', $validated['block_id'])
+            ->count();
+
+        if ($validScheduledCount !== count($validated['subject_ids'])) {
+            throw ValidationException::withMessages([
+                'subject_ids' => 'One or more selected subjects are invalid for the selected term and block.',
+            ]);
+        }
 
         // Check if student is already enrolled in this term
         $existing = Enrollment::where('student_id', $validated['student_id'])
@@ -177,7 +215,6 @@ class EnrollmentController extends Controller
             }
 
             // Update student's year level if different
-            $student = Student::findOrFail($validated['student_id']);
             if ($student->year_level != $validated['year_level']) {
                 $student->update(['year_level' => $validated['year_level']]);
             }
