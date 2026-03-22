@@ -13,15 +13,23 @@ class DepartmentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $showArchived = $request->boolean('show_archived');
+
         $departments = Department::with(['dean', 'programs'])
             ->withCount(['instructors', 'programs'])
+            ->when(!$showArchived, function ($query) {
+                $query->active();
+            })
             ->latest()
             ->paginate(10);
 
         return Inertia::render('Departments/Index', [
             'departments' => $departments,
+            'filters' => [
+                'show_archived' => $showArchived,
+            ],
         ]);
     }
 
@@ -150,17 +158,26 @@ class DepartmentController extends Controller
 
     public function destroy(Department $department)
     {
-        // Check if department has programs
-        if ($department->programs()->count() > 0) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
-                'delete' => 'Cannot delete department with existing programs.',
+        if (!$department->is_active) {
+            return back()->with('info', 'Department is already archived.');
+        }
+
+        if ($department->programs()->exists()) {
+            return back()->withErrors([
+                'archive' => 'Cannot archive department with existing programs.',
             ]);
         }
 
-        $department->delete();
+        if ($department->dean_id !== null || $department->instructors()->exists()) {
+            return back()->withErrors([
+                'archive' => 'Cannot archive department while users are still assigned (dean/instructors).',
+            ]);
+        }
+
+        $department->archive();
 
         return redirect()->route('departments.index')
-            ->with('success', 'Department deleted successfully.');
+            ->with('success', 'Department archived successfully.');
     }
 
 }

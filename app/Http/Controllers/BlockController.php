@@ -17,6 +17,7 @@ class BlockController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $showArchived = $request->boolean('show_archived');
         $query = Block::query()->with('program');
         $programsQuery = Program::active();
 
@@ -30,7 +31,9 @@ class BlockController extends Controller
                     'programs' => [],
                     'activeTerm' => AcademicTerm::where('is_active', true)->first(),
                     'instructors' => Instructor::with('user')->active()->get(),
-                    'filters' => $request->only(['program_id', 'status', 'admission_year']),
+                    'filters' => $request->only(['program_id', 'status', 'admission_year']) + [
+                        'show_archived' => $showArchived,
+                    ],
                     'noProgramAssigned' => true,
                 ]);
             }
@@ -46,6 +49,8 @@ class BlockController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        } elseif (!$showArchived) {
+            $query->where('status', '!=', 'inactive');
         }
 
         if ($request->filled('admission_year')) {
@@ -68,7 +73,9 @@ class BlockController extends Controller
             'programs' => $programsQuery->get(['id', 'name', 'code']),
             'activeTerm' => AcademicTerm::where('is_active', true)->first(),
             'instructors' => Instructor::with('user')->active()->get(),
-            'filters' => $request->only(['program_id', 'status', 'admission_year']),
+            'filters' => $request->only(['program_id', 'status', 'admission_year']) + [
+                'show_archived' => $showArchived,
+            ],
             'noProgramAssigned' => false,
         ]);
     }
@@ -224,17 +231,31 @@ class BlockController extends Controller
             abort(403);
         }
 
+        if ($block->status === 'inactive') {
+            return back()->with('info', 'Block is already archived.');
+        }
+
         if ($block->students()->exists()) {
-            return back()->with('error', 'Cannot delete block with students.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive block with students assigned.',
+            ]);
+        }
+
+        if ($block->scheduledSubjects()->whereHas('enrolledSubjects')->exists()) {
+            return back()->withErrors([
+                'archive' => 'Cannot archive block because enrollments already exist on its scheduled subjects.',
+            ]);
         }
 
         if ($block->scheduledSubjects()->exists()) {
-            return back()->with('error', 'Cannot delete block with schedules.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive block because subject schedules already exist for this block.',
+            ]);
         }
 
-        $block->delete();
+        $block->archive();
 
-        return back()->with('success', 'Block deleted.');
+        return back()->with('success', 'Block archived successfully.');
     }
 
     /**

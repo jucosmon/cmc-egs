@@ -1,17 +1,18 @@
 <script setup>
 import Pagination from "@/Components/Pagination.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, router } from "@inertiajs/vue3";
-import { computed, ref } from "vue";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+const archiveError = computed(() => page.props.errors?.archive || null);
 
 const { curriculums, programs, filters } = defineProps({
     curriculums: Object,
     programs: Array,
     filters: Object,
 });
-
-const showDeleteConfirm = ref(false);
-const selectedCurriculumId = ref(null);
 
 const activateCurriculum = (id) => {
     if (
@@ -31,8 +32,8 @@ const activateCurriculum = (id) => {
     }
 };
 
-const deleteCurriculum = (id) => {
-    if (confirm("Are you sure you want to delete this curriculum?")) {
+const archiveCurriculum = (id) => {
+    if (confirm("Are you sure you want to archive this curriculum?")) {
         router.delete(route("curriculums.destroy", id), {
             onSuccess: () => {
                 router.reload();
@@ -54,6 +55,25 @@ const hasCurriculums = computed(() => {
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
+                        <div
+                            v-if="flash.success"
+                            class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                        >
+                            {{ flash.success }}
+                        </div>
+                        <div
+                            v-if="flash.error"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ flash.error }}
+                        </div>
+                        <div
+                            v-if="archiveError"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ archiveError }}
+                        </div>
+
                         <div class="flex justify-between items-center mb-6">
                             <div>
                                 <h2 class="text-2xl font-bold">Curriculums</h2>
@@ -204,14 +224,15 @@ const hasCurriculums = computed(() => {
                                                 Activate
                                             </button>
                                             <button
+                                                v-if="curriculum.is_active"
                                                 @click="
-                                                    deleteCurriculum(
+                                                    archiveCurriculum(
                                                         curriculum.id,
                                                     )
                                                 "
                                                 class="text-red-600 hover:text-red-900"
                                             >
-                                                Delete
+                                                Archive
                                             </button>
                                         </td>
                                     </tr>

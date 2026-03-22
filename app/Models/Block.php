@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 
 class Block extends Model
 {
@@ -55,5 +56,16 @@ class Block extends Model
     public function scopeByYear($query, $year)
     {
         return $query->where('admission_year', $year);
+    }
+
+    public function archive(): bool
+    {
+        $this->status = 'inactive';
+
+        if (Schema::hasColumn($this->getTable(), 'archived_at')) {
+            $this->setAttribute('archived_at', now());
+        }
+
+        return $this->save();
     }
 }

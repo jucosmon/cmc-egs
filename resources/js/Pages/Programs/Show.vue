@@ -1,33 +1,25 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+const archiveError = computed(() => page.props.errors?.archive || null);
 
 const props = defineProps({
     program: Object,
 });
 
-const deleteProgram = () => {
-    if (
-        !confirm(
-            "Are you sure you want to delete this program? This action cannot be undone.",
-        )
-    )
-        return;
+const archiveProgram = () => {
+    if (!confirm("Are you sure you want to archive this program?")) return;
 
-    router.delete(
-        route("programs.destroy", props.program.id),
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                alert("Program deleted successfully.");
-                router.visit(route("programs.index"));
-            },
-            onError: () => {
-                alert("Failed to delete program.");
-            },
+    router.delete(route("programs.destroy", props.program.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            router.visit(route("programs.index"));
         },
-    );
+    });
 };
 </script>
 
@@ -41,6 +33,25 @@ const deleteProgram = () => {
                     class="bg-white overflow-hidden shadow-sm sm:rounded-lg m-2"
                 >
                     <div class="p-5">
+                        <div
+                            v-if="flash.success"
+                            class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                        >
+                            {{ flash.success }}
+                        </div>
+                        <div
+                            v-if="flash.error"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ flash.error }}
+                        </div>
+                        <div
+                            v-if="archiveError"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ archiveError }}
+                        </div>
+
                         <div
                             class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6"
                         >
@@ -63,7 +74,7 @@ const deleteProgram = () => {
                                         >{{
                                             program.is_active
                                                 ? "Active"
-                                                : "Inactive"
+                                                : "Archived"
                                         }}</span
                                     >
                                 </p>
@@ -85,10 +96,11 @@ const deleteProgram = () => {
                                     >Update</Link
                                 >
                                 <button
-                                    @click="deleteProgram"
+                                    v-if="program.is_active"
+                                    @click="archiveProgram"
                                     class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 ml-2"
                                 >
-                                    Delete
+                                    Archive
                                 </button>
                             </div>
                         </div>

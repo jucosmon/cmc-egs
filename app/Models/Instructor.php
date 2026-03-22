@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Traits\SoftArchive;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Instructor extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftArchive;
 
     protected $fillable = [
         'specialization',

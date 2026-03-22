@@ -67,12 +67,8 @@ const handleResetPassword = () => {
     );
 };
 
-const handleDeleteAccount = () => {
-    if (
-        !confirm(
-            "Are you sure you want to delete this account? This action cannot be undone.",
-        )
-    ) {
+const handleArchiveAccount = () => {
+    if (!confirm("Are you sure you want to archive this account?")) {
         return;
     }
 
@@ -539,14 +535,14 @@ const getRoleLabel = (role) => {
                     </button>
                     <button
                         v-if="isITAdmin"
-                        @click="handleDeleteAccount"
+                        @click="handleArchiveAccount"
                         :disabled="deleteForm.processing"
-                        class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-700 focus:ring-offset-2 disabled:opacity-60"
+                        class="rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
                     >
                         {{
                             deleteForm.processing
-                                ? "Deleting..."
-                                : "Delete Account"
+                                ? "Archiving..."
+                                : "Archive Account"
                         }}
                     </button>
                 </div>

@@ -27,11 +27,15 @@ class ProgramController extends Controller
         return $department;
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
+        $showArchived = $request->boolean('show_archived');
         $query = Program::with(['department', 'programHead'])
             ->withCount(['students', 'blocks', 'curriculums'])
+            ->when(!$showArchived, function ($builder) {
+                $builder->active();
+            })
             ->latest();
 
         // Deans can only see programs in their assigned department
@@ -45,6 +49,9 @@ class ProgramController extends Controller
 
         return Inertia::render('Programs/Index', [
             'programs' => $programs,
+            'filters' => [
+                'show_archived' => $showArchived,
+            ],
         ]);
     }
 
@@ -223,26 +230,33 @@ class ProgramController extends Controller
     public function destroy(Program $program)
     {
         $user = Auth::user();
-        // Deans can only delete programs in their assigned department
+        // Deans can only archive programs in their assigned department
         if ($user->role === 'dean') {
             $department = $this->getDeanDepartmentOrFail();
             if ($program->department_id !== $department->id) {
-                abort(403, 'Unauthorized to delete this program.');
+                abort(403, 'Unauthorized to archive this program.');
             }
         }
 
-        // Check if program has students or curriculums
+        if (!$program->is_active) {
+            return back()->with('info', 'Program is already archived.');
+        }
+
         if ($program->students()->count() > 0) {
-            return back()->with('error', 'Cannot delete program with enrolled students.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive program with enrolled students.',
+            ]);
         }
 
         if ($program->curriculums()->count() > 0) {
-            return back()->with('error', 'Cannot delete program with existing curriculums.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive program with existing curriculums.',
+            ]);
         }
 
-        $program->delete();
+        $program->archive();
 
         return redirect()->route('programs.index')
-            ->with('success', 'Program deleted successfully.');
+            ->with('success', 'Program archived successfully.');
     }
 }

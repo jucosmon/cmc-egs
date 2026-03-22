@@ -206,13 +206,18 @@ class StudentController extends Controller
     {
         // Check if student has enrollments
         if ($student->enrollments()->count() > 0) {
-            return back()->with('error', 'Cannot delete student with enrollment records.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive student with enrollment records.',
+            ]);
         }
 
-        // Delete user and student (cascade will handle student)
-        $student->user->delete();
+        if (!$student->user?->is_active) {
+            return back()->with('info', 'Student account is already archived.');
+        }
+
+        $student->user?->archive();
 
         return redirect()->route('students.index')
-            ->with('success', 'Student deleted successfully.');
+            ->with('success', 'Student account archived successfully.');
     }
 }

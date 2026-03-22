@@ -101,12 +101,14 @@ class SubjectController extends Controller
     {
         // Check if subject is being used in any curriculum
         if ($subject->curriculumSubjects()->count() > 0) {
-            return back()->with('error', 'Cannot delete subject that is part of a curriculum.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive subject that is part of a curriculum.',
+            ]);
         }
 
-        $subject->delete();
+        $subject->archive();
 
         return redirect()->route('subjects.index')
-            ->with('success', 'Subject deleted successfully.');
+            ->with('success', 'Subject archived successfully.');
     }
 }

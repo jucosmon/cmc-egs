@@ -643,10 +643,15 @@ class AccountController extends Controller
 
         $type = $account->role;
 
-        $account->delete();
+        if (!$account->is_active) {
+            return redirect()->route('accounts.index', ['type' => $type])
+                ->with('info', 'Account is already archived.');
+        }
+
+        $account->archive();
 
         return redirect()->route('accounts.index', ['type' => $type])
-            ->with('success', 'Account deleted successfully!');
+            ->with('success', 'Account archived successfully!');
     }
 
     /**

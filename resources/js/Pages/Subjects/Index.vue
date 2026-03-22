@@ -1,8 +1,12 @@
 <script setup>
 import Pagination from "@/Components/Pagination.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, router } from "@inertiajs/vue3";
-import { ref } from "vue";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
+import { computed, ref } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+const archiveError = computed(() => page.props.errors?.archive || null);
 
 const props = defineProps({
     subjects: Object,
@@ -24,8 +28,8 @@ const clearSearch = () => {
     submitSearch();
 };
 
-const deleteSubject = (id) => {
-    if (confirm("Are you sure you want to delete this subject?")) {
+const archiveSubject = (id) => {
+    if (confirm("Are you sure you want to archive this subject?")) {
         router.delete(route("subjects.destroy", id));
     }
 };
@@ -39,6 +43,25 @@ const deleteSubject = (id) => {
             <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
                 <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
                     <div class="p-6">
+                        <div
+                            v-if="flash.success"
+                            class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                        >
+                            {{ flash.success }}
+                        </div>
+                        <div
+                            v-if="flash.error"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ flash.error }}
+                        </div>
+                        <div
+                            v-if="archiveError"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ archiveError }}
+                        </div>
+
                         <div
                             class="mb-6 flex flex-wrap items-center justify-between gap-4"
                         >
@@ -175,12 +198,12 @@ const deleteSubject = (id) => {
                                                     type="button"
                                                     class="text-red-600 hover:text-red-900"
                                                     @click="
-                                                        deleteSubject(
+                                                        archiveSubject(
                                                             subject.id,
                                                         )
                                                     "
                                                 >
-                                                    Delete
+                                                    Archive
                                                 </button>
                                             </div>
                                         </td>

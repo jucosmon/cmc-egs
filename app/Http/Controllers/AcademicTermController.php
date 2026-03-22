@@ -172,18 +172,26 @@ class AcademicTermController extends Controller
     {
         // Check if term has enrollments
         if ($term->enrollments()->count() > 0) {
-            return back()->with('error', 'Cannot delete academic term with existing enrollments.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive academic term with existing enrollments.',
+            ]);
         }
 
         // Check if term has scheduled subjects
         if ($term->scheduledSubjects()->count() > 0) {
-            return back()->with('error', 'Cannot delete academic term with scheduled subjects.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive academic term with scheduled subjects.',
+            ]);
         }
 
-        $term->delete();
+        if (!$term->is_active) {
+            return back()->with('info', 'Academic term is already archived.');
+        }
+
+        $term->archive();
 
         return redirect()->route('terms.index')
-            ->with('success', 'Academic term deleted successfully.');
+            ->with('success', 'Academic term archived successfully.');
     }
 
     // Additional method to activate a term

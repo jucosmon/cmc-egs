@@ -280,13 +280,19 @@ class CurriculumController extends Controller
     {
         // Check if curriculum is being used
         if ($curriculum->curriculumSubjects()->whereHas('scheduledSubjects')->count() > 0) {
-            return back()->with('error', 'Cannot delete curriculum with scheduled subjects.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive curriculum with scheduled subjects.',
+            ]);
         }
 
-        $curriculum->delete();
+        if (!$curriculum->is_active) {
+            return back()->with('info', 'Curriculum is already archived.');
+        }
+
+        $curriculum->archive();
 
         return redirect()->route('curriculums.index')
-            ->with('success', 'Curriculum deleted successfully.');
+            ->with('success', 'Curriculum archived successfully.');
     }
 
 

@@ -1,37 +1,25 @@
 <script setup>
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import { Head, Link, router } from "@inertiajs/vue3";
+import { Head, Link, router, usePage } from "@inertiajs/vue3";
+import { computed } from "vue";
+
+const page = usePage();
+const flash = computed(() => page.props.flash || {});
+const archiveError = computed(() => page.props.errors?.archive || null);
 
 const props = defineProps({
     department: Object,
 });
 
-const deleteDepartment = () => {
-    if (
-        !confirm(
-            "Are you sure you want to delete this department? This action cannot be undone.",
-        )
-    )
-        return;
+const archiveDepartment = () => {
+    if (!confirm("Are you sure you want to archive this department?")) return;
 
-    router.delete(
-        route("departments.destroy", props.department.id),
-        {},
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                alert("Department deleted successfully.");
-                router.visit(route("departments.index"));
-            },
-            onError: (errors) => {
-                const message =
-                    errors?.delete ||
-                    errors?.message ||
-                    "Failed to delete department.";
-                alert(message);
-            },
+    router.delete(route("departments.destroy", props.department.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            router.visit(route("departments.index"));
         },
-    );
+    });
 };
 </script>
 
@@ -45,6 +33,25 @@ const deleteDepartment = () => {
                     class="bg-white overflow-hidden shadow-sm sm:rounded-lg m-2"
                 >
                     <div class="p-5">
+                        <div
+                            v-if="flash.success"
+                            class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800"
+                        >
+                            {{ flash.success }}
+                        </div>
+                        <div
+                            v-if="flash.error"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ flash.error }}
+                        </div>
+                        <div
+                            v-if="archiveError"
+                            class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800"
+                        >
+                            {{ archiveError }}
+                        </div>
+
                         <div
                             class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6"
                         >
@@ -67,7 +74,7 @@ const deleteDepartment = () => {
                                         >{{
                                             department.is_active
                                                 ? "Active"
-                                                : "Inactive"
+                                                : "Archived"
                                         }}</span
                                     >
                                 </p>
@@ -91,10 +98,11 @@ const deleteDepartment = () => {
                                     >Update</Link
                                 >
                                 <button
-                                    @click="deleteDepartment"
+                                    v-if="department.is_active"
+                                    @click="archiveDepartment"
                                     class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 ml-2"
                                 >
-                                    Delete
+                                    Archive
                                 </button>
                             </div>
                         </div>

@@ -65,7 +65,7 @@ class ProfileController extends Controller
     }
 
     /**
-     * Delete the user's account.
+     * Archive the user's account.
      */
     public function destroy(Request $request): RedirectResponse
     {
@@ -79,7 +79,7 @@ class ProfileController extends Controller
 
         Auth::logout();
 
-        $user->delete();
+        $user->archive();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

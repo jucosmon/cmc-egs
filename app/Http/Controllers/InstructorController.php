@@ -192,18 +192,26 @@ class InstructorController extends Controller
     {
         // Check if instructor has scheduled subjects
         if ($instructor->scheduledSubjects()->count() > 0) {
-            return back()->with('error', 'Cannot delete instructor with scheduled subjects.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive instructor with scheduled subjects.',
+            ]);
         }
 
         // Check if instructor is a program head
         if ($instructor->programsAsHead()->count() > 0) {
-            return back()->with('error', 'Cannot delete instructor who is a program head.');
+            return back()->withErrors([
+                'archive' => 'Cannot archive instructor who is a program head.',
+            ]);
         }
 
-        // Delete user and instructor (cascade will handle instructor)
-        $instructor->user->delete();
+        if (!$instructor->is_active && $instructor->user && !$instructor->user->is_active) {
+            return back()->with('info', 'Instructor is already archived.');
+        }
+
+        $instructor->archive();
+        $instructor->user?->archive();
 
         return redirect()->route('instructors.index')
-            ->with('success', 'Instructor deleted successfully.');
+            ->with('success', 'Instructor archived successfully.');
     }
 }
