@@ -533,8 +533,16 @@ class EnrollmentController extends Controller
             return back()->with('error', 'No active academic term found.');
         }
 
+        // Verify enrollment period dates are properly set
+        if (!$activeTerm->start_enrollment || !$activeTerm->end_enrollment) {
+            return back()->with('error', 'Active academic term enrollment period is not yet configured.');
+        }
+
         if (!$activeTerm->isEnrollmentOpen()) {
-            return back()->with('error', 'Enrollment period is already closed.');
+            // Format dates more safely
+            $startDate = \Carbon\Carbon::parse($activeTerm->start_enrollment)->format('M d, Y');
+            $endDate = \Carbon\Carbon::parse($activeTerm->end_enrollment)->format('M d, Y');
+            return back()->with('error', "Enrollment period is not currently open. The enrollment period for this term is from {$startDate} to {$endDate}.");
         }
 
         // Check if already enrolled
@@ -575,6 +583,11 @@ class EnrollmentController extends Controller
         }
 
         $scheduledSubject = ScheduledSubject::findOrFail($validated['scheduled_subject_id']);
+
+        // Verify scheduled subject belongs to the same academic term as the enrollment
+        if ($scheduledSubject->academic_term_id !== $activeTerm->id) {
+            return back()->with('error', 'This subject is not available in the current enrollment term.');
+        }
 
         // Check if already enrolled
         $existing = EnrolledSubject::where('enrollment_id', $enrollment->id)
@@ -640,12 +653,20 @@ class EnrollmentController extends Controller
             return back()->with('error', 'Unit limit exceeded. Maximum is 24 units.');
         }
 
-        // Enroll
-        EnrolledSubject::create([
-            'enrollment_id' => $enrollment->id,
-            'scheduled_subject_id' => $scheduledSubject->id,
-            'status' => 'enrolled',
-        ]);
+        // Enroll with transaction protection
+        DB::beginTransaction();
+        try {
+            EnrolledSubject::create([
+                'enrollment_id' => $enrollment->id,
+                'scheduled_subject_id' => $scheduledSubject->id,
+                'status' => 'enrolled',
+            ]);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to enroll student in subject: ' . $e->getMessage());
+        }
 
         $subjectName = $scheduledSubject->curriculumSubject->subject->title;
 
@@ -689,6 +710,15 @@ class EnrollmentController extends Controller
         $enrollment = Enrollment::with(['student.program'])->findOrFail($validated['enrollment_id']);
         $activeTerm = $enrollment->academicTerm;
         $subjectCode = trim($validated['subject_code'] ?? '');
+
+        // Validate enrollment exists and has an academic term
+        if (!$activeTerm) {
+            return response()->json([
+                'availableSchedules' => [],
+                'status' => 'no_term',
+                'message' => 'Enrollment has no associated academic term.',
+            ]);
+        }
 
         $curriculum = $enrollment->student->program
             ->curriculums()
@@ -799,12 +829,15 @@ class EnrollmentController extends Controller
         ]);
 
         $totalUnits = $enrollment->enrolledSubjects
+            ->filter(function ($es) {
+                return $es->status !== 'dropped' && $es->scheduledSubject && $es->scheduledSubject->curriculumSubject;
+            })
             ->sum(function ($es) {
                 return $es->scheduledSubject->curriculumSubject->subject->units ?? 0;
             });
 
         $studentId = $enrollment->student->user->official_id ?? $enrollment->student->id;
-        $term = $enrollment->academicTerm->academic_year ?? 'term';
+        $term = $enrollment->academicTerm?->academic_year ?? 'term';
 
         $pdf = Pdf::loadView('reports.schedule', [
             'enrollment' => $enrollment,
