@@ -21,17 +21,17 @@ const submitSearch = () => {
         search: search.value || undefined,
         show_archived: showArchived.value ? 1 : undefined,
     };
-    
+
     // Remove undefined values
-    Object.keys(params).forEach(key => {
+    Object.keys(params).forEach((key) => {
         if (params[key] === undefined) delete params[key];
     });
-    
-    router.get(
-        route("subjects.index"),
-        params,
-        { preserveState: true, replace: true, preserveScroll: true },
-    );
+
+    router.get(route("subjects.index"), params, {
+        preserveState: true,
+        replace: true,
+        preserveScroll: true,
+    });
 };
 
 const clearSearch = () => {
@@ -50,20 +50,16 @@ const toggleArchived = () => {
         search: search.value || undefined,
         show_archived: showArchived.value ? 1 : undefined,
     };
-    
+
     // Remove undefined values
-    Object.keys(params).forEach(key => {
+    Object.keys(params).forEach((key) => {
         if (params[key] === undefined) delete params[key];
     });
-    
-    router.get(
-        route("subjects.index"),
-        params,
-        {
-            preserveState: true,
-            replace: true,
-        },
-    );
+
+    router.get(route("subjects.index"), params, {
+        preserveState: true,
+        replace: true,
+    });
 };
 </script>
 

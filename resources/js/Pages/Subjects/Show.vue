@@ -86,7 +86,11 @@ const toggleArchiveSubject = () => {
                                     ]"
                                     @click="toggleArchiveSubject"
                                 >
-                                    {{ subject.is_active ? "Archive" : "Restore" }}
+                                    {{
+                                        subject.is_active
+                                            ? "Archive"
+                                            : "Restore"
+                                    }}
                                 </button>
                                 <Link
                                     :href="route('subjects.index')"
